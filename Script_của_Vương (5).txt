@@ -1,0 +1,2533 @@
+-- ☠ VƯƠNG HÓNG HỚT HUB — GAMING UI ☠  (v2.20)
+
+-- chạy lại script thì gỡ bản cũ trước, tránh bị chồng 2 hub
+if _G.VuongHubUnload then pcall(_G.VuongHubUnload) end
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local UIS = game:GetService("UserInputService")
+local GuiService = game:GetService("GuiService")
+local HttpService = game:GetService("HttpService")
+local MarketplaceService = game:GetService("MarketplaceService")
+local Stats = game:GetService("Stats")
+local Lighting = game:GetService("Lighting")
+local p = Players.LocalPlayer or Players.PlayerAdded:Wait()  -- phòng khi script chạy quá sớm, lúc LocalPlayer chưa kịp gán
+
+-- theo dõi mọi kết nối của hub để gỡ sạch khi Unload
+local conns = {}
+local alive = true
+local booting = true  -- true trong lúc khởi động: không hiện thông báo trạng thái
+local function track(c)
+	conns[#conns + 1] = c
+	return c
+end
+
+----------------------------------------------------------------
+-- CẤU HÌNH GIAO DIỆN
+----------------------------------------------------------------
+-- true = bật hiệu ứng viền chạy màu + logo nhấp nháy (đẹp hơn nhưng tốn máy)
+local ANIMATIONS = false
+
+-- Logo (mèo chuối) và ảnh banner (mèo nấm) đã nhúng sẵn trong script, không cần mạng.
+-- LOGO_ID: muốn dùng ảnh khác đã upload lên Roblox (ưu tiên cao nhất) thì điền ID vào đây.
+local LOGO_ID = ""
+local LOGO_FILE = "VuongHub_Logo.png"
+local LOGO_B64 = "iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAMAAAD04JH5AAAAwFBMVEUAAADd0R2mmRuJdFibjGemnZZoWyDHuR5wY1IzJhFwcHCHdiT29fBHNhSqp6dubiXo4c4mHQ+wq6KmoJOpqWhrZE9nYVPi4qOlY1iCeGP//wD29nrMx7NkHBycl2vHuEfUsawrIxiPinL/AADCurfVyUb/f39NRS1YUj3GwqYTE0RCOTV5bYV/v7+He4DDubYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABIT6pwAAAAMHRSTlMA/v7+/Pz9/vr9Cf4Q/BAEW5xhoASoVgoHoAECVQSt/hJkYwFT/gJksqYarRUE5YVGsQiWAAAGUUlEQVR42u2b2ZbjOAhAsS1LiqTYWSpb7VtPd8/6/383IGRHdpKal8I5faZ4qFT8wjUgQEgB+JIv+ZJfTVz6bP+3779dsryEh+sAbGazOcrMBghXAGhgYSPAXG+Du44XDgwwV3AVgBt4TyawwV2DAD3PADO9uEoQoGwxDGco4SFcaSXOWLZwpSi82zLA5joLEXbwriOADaGBa4UhiV5FjzRXCALHPpgvFpycpjbBjk2A2dAqtQ2wnxigZQvoJNXU+eCGU5HWZRK1wGeTliNF+n1ZFoUxpihUPaUN7m6C1fz+RSdPaIPdVAC/gUK/kwFMD1CQF+4ms4EqKfRy/UXxTW2naRKDC4+q9CcA0QZTxMEdBEWBjx4oihFBmCIO7m4ZwJdjAFM+3u93E+SAR5VWf3FCUP0uXp8xBGzSb4pTglI8IzVt0BcBkAAj8Vm4DLgPAArMyivZ2tiG1/JDgFK2Uw1tePzIAsaUwvmgBev/A6C0oX2TW4SLqi/CxTmCUjYMGlj3+ktjzgP4KsCtlAfeNkeAswgG6wTmZDEfwDIHOIdAACus2TKtgNtr3QVh6b0/jUZDJvgplY0cPCat3ldR0lczXIhrof2Kw1KsPUvVidcDBgLwG6GKQDui2IbnQt99NITpALTU8GYH9yf6q8p2zkiZwZS0DBqpNYBB2KtWA5DOCGQCsX37Umfer9SIoFJIEH2gpKrB0uY6RwD04Ak3KuQDsTRkqzGAtYMnJi4DK1URewDbBYE9BSAfrIUa5KEFYhSOnihDXYk/hHYqF4yjoIw9wYtQIhzZ+xwB1wm0wOdXZBfAZu+uVF3jJ0OoPBtQUxIEMkEDK35v/FOTehL8b+QM3rm5z9+qhibUVvF7J+0sVVUnADZQAvh0C1ApGqnOJLNBdIEAADzADwaA8wQqB/hTwAIuaMo71p5YAReH7QMhRqFaiwAoG0e0YwIbR4Zz2xkgNkUCBdlBY+OUvh4SkH4CszWvyCdKRSuBGHDB2Tgg1dYO7E/K8SmtDwKI1eAfAQvQMiAfzAdhoBiKDBABUkGsJUZWDl4shaGqMhOgSquJqU4eMLEpWovMzBzmYjY75p7OAkdbxBB8+hYBapGmbA+vbPxz6Yjfv/xWiAJsbXUhF1IipmJcdAAyLmiO4ZeXJPyGO4b0/rw7kpmbPsCyYqWKm8FsLWhP7ZAwQBMWNlZj7gX7xYALAV9fPR23Z7XQzsABvjUtdmvzsoA0qh+ZUB5QYgCu4cozAKC+SJnBoGgtNTvfwzrptjp9Vn3091MSI7QKEoHiTXEPMNBvogvKtdjUONwGaoc7AK1Vrt+wyHREXUlagKYRCR/Z2Vh9iiGAZAzQiUWt6bggEvj4/kOA2BHVcoN7Bz9VmlTFTcBgUJb0iw4rb9xOpbkQD+pGAEywkrPADdxXejApNKcAXtACrm2szg0w0m+kNiZZd1xdADDlFADQPh98eQEg9uRCe8NsGWzyEDCDA5NEIArQXgbwHYAVdcFlgBgbXhrgBtb+LIApNY2SY4aWBGjg/vyxCQL4blqykj1DPQtAJwU8OUIRPj7MAAbnRV4lgHoqC5jBqaWvegu4CQCGZaiIxyidBaw8AN0hGRDg8iMAmlghAMgCzBFg1AkQUpzl1xO5wA8PTw0/0HFOo+wmyN5o0dyRlUP96BKfeuXvkldqXDy/HVykYf20JdF02XRmG8kTdAcHCsL5ESCW4dQPxkS8ErU/FiMd71Kly1ymPOqPhWAbZCOQAfg2men1F73+79I3HBlgNjve5zPpuI7sX21B+s57Cz/QAN2Nxm4tdv5fyF8pQwvM08ViuuLOAcCdoNYvIC8IkGaTTHAsjbhTneBC25sLB6U7/TrTjwCvTSN+m+svWNB5IXlhqB7XgH2d4LK3g1UckGEc5vbH3SIVoQDiCBGABkVMcLzOEY/xavl71g7u04wOk9GM7pZSJ+xTJ4SPpW9W0u6Y9VtKB3OelJRK9QjCV/ocvFc0qWMA281pjjIXjoIGFhW7wOrZIayXy01YxBO9ZIFa2AINvHeTwln2uAewwh05DUv/5nPSP7bQxp8aBfy77gAO4vfMA4QGxZExQtYm1Xx2+Ly7BXGC87JCgjpM8cMX59yefuMUhg8hPK+v8HOLfIF+YJ5JJLjmFr7kS77k15N/ARutVpRdFWlcAAAAAElFTkSuQmCC"
+local TOGGLE_KEY = Enum.KeyCode.RightShift  -- phím bật/tắt hub trên PC
+local SAVE_FILE = "VuongHub_Settings.json"  -- file lưu cài đặt (nếu executor hỗ trợ)
+
+-- Thông tin của bạn: đã cập nhật đầy đủ mạng xã hội
+local INFO = {
+	Author = "Vương Hóng Hớt",
+	Version = "v2.20",
+	Socials = {
+		{ Icon = "🎵", Name = "TikTok", Link = "https://www.tiktok.com/@vuong_120309" },
+		{ Icon = "▶", Name = "YouTube", Link = "https://youtube.com/@vuonghothot?si=ymq17LP_tbpoMoCR" },
+		{ Icon = "💬", Name = "Discord", Link = "https://discord.gg/WZyXwF6v" },
+	},
+}
+
+local THEME = {
+	Panel   = Color3.fromRGB(19, 21, 30),
+	Card    = Color3.fromRGB(24, 27, 38),
+	CardOn  = Color3.fromRGB(12, 44, 32),
+	Accent  = Color3.fromRGB(0, 255, 130),
+	Accent2 = Color3.fromRGB(0, 170, 255),
+	Off     = Color3.fromRGB(90, 96, 115),
+	PillOff = Color3.fromRGB(45, 49, 64),
+	Text    = Color3.fromRGB(235, 240, 250),
+	Sub     = Color3.fromRGB(140, 148, 170),
+	Danger  = Color3.fromRGB(230, 60, 75),
+}
+
+local W, H_FULL, H_MIN = 252, 270, 36
+
+----------------------------------------------------------------
+-- CÀI ĐẶT + LƯU / TẢI
+----------------------------------------------------------------
+local DEFAULTS = {
+	zoom = 1,
+	-- ESP
+	espNPC = false, espPlayer = false, teamCheck = false,
+	espDist = 600,   -- xa hơn thì ẩn
+	espMax = 20,     -- chỉ vẽ tối đa N mục tiêu gần nhất (Roblox giới hạn ~31 Highlight)
+	espItem = false, espPrompt = false,
+	itemMax = 30,    -- chỉ hiện tối đa N vật phẩm gần nhất
+	-- Di chuyển
+	speedOn = false, speedVal = 32,
+	jumpOn = false, jumpVal = 80,  -- tính theo JumpPower (mặc định game thường là 50)
+	noclip = false, infJump = false,
+	fly = false, flySpeed = 60,
+	autoDodge = false,  -- tự né ra xa khi quái/NPC áp sát
+	dodgeRadius = 20,   -- bán kính né (stud), né sớm hơn thì tăng số này lên
+	-- Fix Lag: 1 = Nhẹ, 2 = Mạnh
+	lagOn = false, lagLevel = 1,
+	autoTranslate = false,  -- tự dịch chat người khác sang tiếng Việt
+	fullbright = false,  -- làm sáng toàn map (game kinh dị/hầm tối)
+}
+
+local CFG = {}
+for k, v in pairs(DEFAULTS) do CFG[k] = v end
+
+local canSave = type(writefile) == "function"
+	and type(readfile) == "function"
+	and type(isfile) == "function"
+
+local function loadSettings()
+	if not canSave then return end
+	local ok, data = pcall(function()
+		if isfile(SAVE_FILE) then
+			return HttpService:JSONDecode(readfile(SAVE_FILE))
+		end
+	end)
+	if ok and type(data) == "table" then
+		for k, def in pairs(DEFAULTS) do
+			if type(data[k]) == type(def) then CFG[k] = data[k] end
+		end
+	end
+end
+
+local function writeNow()
+	if not canSave then return false end
+	return (pcall(function()
+		writefile(SAVE_FILE, HttpService:JSONEncode(CFG))
+	end))
+end
+
+-- lưu có trễ 0.6 giây để không ghi file liên tục khi giữ nút +/-
+local saveToken = 0
+local function save()
+	if not canSave then return end
+	saveToken += 1
+	local my = saveToken
+	task.delay(0.6, function()
+		if alive and my == saveToken then writeNow() end
+	end)
+end
+
+loadSettings()
+
+----------------------------------------------------------------
+-- HÀM TIỆN ÍCH
+----------------------------------------------------------------
+local function make(class, props, parent)
+	local o = Instance.new(class)
+	-- bọc pcall từng thuộc tính: 1 thuộc tính sai/không hợp lệ chỉ bị bỏ qua,
+	-- không làm dừng (crash) toàn bộ script giữa chừng như trước đây.
+	for k, v in pairs(props) do
+		pcall(function() o[k] = v end)
+	end
+	o.Parent = parent
+	return o
+end
+
+local function corner(obj, r)
+	return make("UICorner", { CornerRadius = UDim.new(0, r) }, obj)
+end
+
+local function tw(obj, t, props)
+	TweenService:Create(obj, TweenInfo.new(t), props):Play()
+end
+
+local function onoff(v) return v and "ON" or "OFF" end
+
+-- gọi HTTP GET, trả về nội dung dạng text (hoặc nil nếu lỗi/không có hàm hỗ trợ).
+-- Thử qua nhiều tên hàm phổ biến của executor trước, không có thì dùng game:HttpGet.
+local function httpGetText(url)
+	local candidates = { (syn and syn.request), http_request, request }
+	for _, fn in ipairs(candidates) do
+		if type(fn) == "function" then
+			local ok, res = pcall(fn, { Url = url, Method = "GET" })
+			if ok and res and (res.StatusCode == 200 or res.Success) and res.Body then
+				return res.Body
+			end
+		end
+	end
+	if game and game.HttpGet then
+		local ok, res = pcall(function() return game:HttpGet(url) end)
+		if ok and res and #res > 0 then return res end
+	end
+	return nil
+end
+
+-- kéo thả dùng được cả chuột lẫn cảm ứng; onClick chỉ chạy khi nhấn mà không kéo
+local function makeDraggable(obj, handle, onClick)
+	local dragging, moved, startMouse, startPos = false, false, nil, nil
+
+	track(handle.InputBegan:Connect(function(input)
+		local t = input.UserInputType
+		if t ~= Enum.UserInputType.MouseButton1 and t ~= Enum.UserInputType.Touch then return end
+		dragging, moved = true, false
+		startMouse, startPos = input.Position, obj.Position
+
+		local c
+		c = input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then
+				c:Disconnect()
+				dragging = false
+				if not moved and onClick then onClick() end
+			end
+		end)
+	end))
+
+	track(UIS.InputChanged:Connect(function(input)
+		if not dragging then return end
+		local t = input.UserInputType
+		if t ~= Enum.UserInputType.MouseMovement and t ~= Enum.UserInputType.Touch then return end
+		local d = input.Position - startMouse
+		if not moved and d.Magnitude > 6 then moved = true end
+		if moved then
+			obj.Position = UDim2.new(
+				startPos.X.Scale, startPos.X.Offset + d.X,
+				startPos.Y.Scale, startPos.Y.Offset + d.Y
+			)
+		end
+	end))
+end
+
+-- giải mã base64 -> chuỗi byte (dùng để ghi ảnh PNG nhúng sẵn ra file)
+local B64_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+local function b64decode(s)
+	local map = {}
+	for i = 1, #B64_CHARS do map[B64_CHARS:byte(i)] = i - 1 end
+	local out, n = {}, 0
+	local buf, bits = 0, 0
+	for i = 1, #s do
+		local v = map[s:byte(i)]
+		if v then
+			buf = buf * 64 + v
+			bits += 6
+			if bits >= 8 then
+				bits -= 8
+				local div = 2 ^ bits
+				local byte = math.floor(buf / div)
+				buf = buf - byte * div
+				n += 1
+				out[n] = string.char(byte)
+			end
+		end
+	end
+	return table.concat(out)
+end
+
+-- ghi 1 ảnh PNG (dạng base64) ra file tạm rồi trả về asset id để gán vào Image.
+-- Dùng chung cho cả logo lẫn banner.
+local function loadEmbeddedImage(fileName, b64Data)
+	local getAsset = getcustomasset or getsynasset
+	if type(writefile) ~= "function" or type(getAsset) ~= "function" then return "" end
+	local ok, res = pcall(function()
+		writefile(fileName, b64decode(b64Data))
+		return getAsset(fileName)
+	end)
+	if ok and type(res) == "string" and res ~= "" then return res end
+	return ""
+end
+
+local toggleHub  -- gán ở cuối file
+
+----------------------------------------------------------------
+-- GUI GỐC + LOGO
+----------------------------------------------------------------
+local gui = make("ScreenGui", {
+	Name = "VuongHub",
+	ResetOnSpawn = false,
+	ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+}, p:WaitForChild("PlayerGui"))
+
+local logoImage = LOGO_ID ~= "" and ("rbxassetid://" .. LOGO_ID) or loadEmbeddedImage(LOGO_FILE, LOGO_B64)
+local hasLogo = logoImage ~= ""
+
+
+local open = make("ImageButton", {
+	Name = "Logo",
+	Size = UDim2.fromOffset(56, 56),
+	Position = UDim2.new(0, 16, 0.5, -28),
+	BackgroundColor3 = hasLogo and THEME.Panel or Color3.fromRGB(255, 221, 51),
+	BackgroundTransparency = 0,
+	Image = logoImage,
+	ScaleType = Enum.ScaleType.Fit,
+	AutoButtonColor = false,
+}, gui)
+corner(open, 28)
+
+local logoStroke = make("UIStroke", { Color = THEME.Accent, Thickness = 2.5 }, open)
+if ANIMATIONS then
+	TweenService:Create(
+		logoStroke,
+		TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+		{ Thickness = 4.5, Transparency = 0.45 }
+	):Play()
+end
+
+if not hasLogo then
+	make("TextLabel", {
+		Size = UDim2.fromScale(1, 1),
+		BackgroundTransparency = 1,
+		Text = "🍌",
+		TextScaled = true,
+	}, open)
+end
+
+-- bấm logo = bật/tắt hub, kéo logo = di chuyển logo
+makeDraggable(open, open, function() toggleHub() end)
+
+----------------------------------------------------------------
+-- ESP (NPC + PLAYER)
+----------------------------------------------------------------
+local ESP = { Tracked = {}, Conns = {}, Gen = 0 }
+
+local ESP_CONFIG = {
+	NPCColor = Color3.fromRGB(0, 255, 100),
+	PlayerColor = Color3.fromRGB(0, 170, 255),
+	LowHealthColor = Color3.fromRGB(255, 60, 60),
+	FillTransparency = 0.5,
+	UpdateRate = 0.15,   -- giây giữa mỗi lần cập nhật
+}
+
+local espFolder = make("Folder", { Name = "ESPFolder" }, gui)
+
+-- phân loại: nhân vật người chơi khác = "Player", model có Humanoid còn lại = "NPC"
+local function getKind(model)
+	if not model:IsA("Model") or model == p.Character then return nil end
+	if not model:FindFirstChildOfClass("Humanoid") then return nil end
+	if Players:GetPlayerFromCharacter(model) then
+		if CFG.espPlayer then return "Player" end
+	else
+		if CFG.espNPC then return "NPC" end
+	end
+	return nil
+end
+
+local function mainPart(model)
+	return model:FindFirstChild("HumanoidRootPart")
+		or model.PrimaryPart
+		or model:FindFirstChild("Head")
+		or model:FindFirstChildWhichIsA("BasePart", true)
+end
+
+local function isTeammate(data)
+	if not CFG.teamCheck then return false end
+	local plr = data.Plr
+	return plr ~= nil and p.Team ~= nil and plr.Team == p.Team
+end
+
+local function removeTarget(model)
+	local data = ESP.Tracked[model]
+	if not data then return end
+	data.Highlight:Destroy()
+	data.Gui:Destroy()
+	ESP.Tracked[model] = nil
+end
+
+local function addTarget(model)
+	if ESP.Tracked[model] then return end
+	local kind = getKind(model)
+	if not kind then return end
+	local part = mainPart(model)
+	if not part then return end
+
+	local color = kind == "Player" and ESP_CONFIG.PlayerColor or ESP_CONFIG.NPCColor
+
+	local h = make("Highlight", {
+		Adornee = model,
+		DepthMode = Enum.HighlightDepthMode.AlwaysOnTop,
+		FillColor = color,
+		OutlineColor = Color3.new(1, 1, 1),
+		FillTransparency = ESP_CONFIG.FillTransparency,
+	}, model)
+
+	local bb = make("BillboardGui", {
+		Adornee = model:FindFirstChild("Head") or part,
+		AlwaysOnTop = true,
+		Size = UDim2.fromOffset(140, 30),
+		StudsOffset = Vector3.new(0, 2.5, 0),
+	}, espFolder)
+
+	local lbl = make("TextLabel", {
+		BackgroundTransparency = 1,
+		Size = UDim2.fromScale(1, 1),
+		Font = Enum.Font.GothamBold,
+		TextSize = 12,
+		TextColor3 = Color3.new(1, 1, 1),
+		TextStrokeTransparency = 0.3,
+	}, bb)
+
+	ESP.Tracked[model] = {
+		Highlight = h, Gui = bb, Label = lbl,
+		Hum = model:FindFirstChildOfClass("Humanoid"),
+		Plr = Players:GetPlayerFromCharacter(model),
+		Root = part, Kind = kind, Color = color, Name = model.Name,
+		Shown = true, Dist = 0,
+	}
+end
+
+local function clearAll()
+	for model in pairs(ESP.Tracked) do removeTarget(model) end
+	for _, c in ipairs(ESP.Conns) do c:Disconnect() end
+	table.clear(ESP.Conns)
+end
+
+-- chỉ đổi thuộc tính khi thật sự thay đổi (đỡ tốn render)
+local function setShown(data, on)
+	if data.Shown ~= on then
+		data.Shown = on
+		data.Highlight.Enabled = on
+		data.Gui.Enabled = on
+	end
+end
+
+local function startESP()
+	local gen = ESP.Gen
+
+	-- quét nền, chia nhỏ từng đợt để không bị đứng hình
+	task.spawn(function()
+		local n = 0
+		for _, v in ipairs(workspace:GetDescendants()) do
+			if ESP.Gen ~= gen then return end
+			if v.ClassName == "Humanoid" and v.Parent then addTarget(v.Parent) end
+			n += 1
+			if n % 2000 == 0 then task.wait() end
+		end
+	end)
+
+	-- mục tiêu mới (respawn / spawn thêm)
+	table.insert(ESP.Conns, workspace.DescendantAdded:Connect(function(v)
+		if v.ClassName ~= "Humanoid" then return end
+		task.spawn(function()
+			local m = v.Parent
+			if not m then return end
+			m:WaitForChild("Head", 3)  -- chờ model load đủ bộ phận
+			if ESP.Gen == gen then addTarget(m) end
+		end)
+	end))
+
+	table.insert(ESP.Conns, workspace.DescendantRemoving:Connect(function(v)
+		if ESP.Tracked[v] then removeTarget(v) end
+	end))
+
+	local acc = 0
+	local list = {}
+	table.insert(ESP.Conns, RunService.Heartbeat:Connect(function(dt)
+		acc += dt
+		if acc < ESP_CONFIG.UpdateRate then return end
+		acc = 0
+
+		local cam = workspace.CurrentCamera
+		local myRoot = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+		local origin = myRoot and myRoot.Position or (cam and cam.CFrame.Position) or Vector3.zero
+		local maxDist, maxTargets = CFG.espDist, CFG.espMax
+		table.clear(list)
+
+		for model, data in pairs(ESP.Tracked) do
+			local hum = data.Hum
+			if not model.Parent or not hum or not hum.Parent then
+				removeTarget(model)
+			else
+				local root = data.Root
+				if not root or not root.Parent then
+					root = mainPart(model)
+					data.Root = root
+				end
+				local dist = root and (root.Position - origin).Magnitude or 0
+				if hum.Health > 0 and dist <= maxDist and not isTeammate(data) then
+					data.Dist = dist
+					list[#list + 1] = data
+				else
+					setShown(data, false)
+				end
+			end
+		end
+
+		-- chỉ vẽ N mục tiêu gần nhất
+		if #list > maxTargets then
+			table.sort(list, function(a, b) return a.Dist < b.Dist end)
+		end
+
+		for i, data in ipairs(list) do
+			if i > maxTargets then
+				setShown(data, false)
+			else
+				setShown(data, true)
+				local hum = data.Hum
+				local hp = math.floor(hum.Health)
+				local d = math.floor(data.Dist / 5 + 0.5) * 5  -- làm tròn 5m cho đỡ đổi chữ liên tục
+				if data.HP ~= hp or data.D ~= d then
+					data.HP, data.D = hp, d
+					data.Label.Text = string.format("%s | %d HP | %dm", data.Name, hp, d)
+					local ratio = math.clamp(hum.Health / math.max(hum.MaxHealth, 1), 0, 1)
+					data.Highlight.FillColor = ESP_CONFIG.LowHealthColor:Lerp(data.Color, ratio)
+				end
+			end
+		end
+	end))
+end
+
+function ESP.Refresh()
+	ESP.Gen += 1  -- huỷ đợt quét cũ đang chạy nền
+	clearAll()
+	if CFG.espNPC or CFG.espPlayer then startESP() end
+end
+
+function ESP.CountKind(kind)
+	local n = 0
+	for _, d in pairs(ESP.Tracked) do
+		if d.Kind == kind then n += 1 end
+	end
+	return n
+end
+
+----------------------------------------------------------------
+-- ESP ITEM (vật phẩm rơi / vật phẩm nhặt được)
+----------------------------------------------------------------
+local ITEM = { Tracked = {}, Conns = {}, Gen = 0 }
+
+local ITEM_CFG = {
+	ToolColor = Color3.fromRGB(255, 215, 0),
+	PromptColor = Color3.fromRGB(255, 150, 50),
+	UpdateRate = 0.25,
+}
+
+local function itemPart(inst, kind)
+	if kind == "Tool" then
+		local h = inst:FindFirstChild("Handle")
+		if h and h:IsA("BasePart") then return h end
+		return inst:FindFirstChildWhichIsA("BasePart", true)
+	end
+	local par = inst.Parent
+	if not par then return nil end
+	if par:IsA("BasePart") then return par end
+	if par:IsA("Attachment") and par.Parent and par.Parent:IsA("BasePart") then
+		return par.Parent
+	end
+	if par:IsA("Model") then
+		return par.PrimaryPart or par:FindFirstChildWhichIsA("BasePart", true)
+	end
+	return nil
+end
+
+local function itemName(inst, kind)
+	if kind == "Prompt" then
+		local t = inst.ObjectText
+		if t == "" then t = inst.Parent and inst.Parent.Name or "Item" end
+		return t
+	end
+	return inst.Name
+end
+
+-- Tìm "giá trị" của vật phẩm: game nào cũng lưu khác nhau nên thử nhiều chỗ
+-- (Attribute, NumberValue/IntValue/StringValue con, ActionText của prompt)
+local VALUE_KEYS = {
+	"value", "price", "cost", "worth", "sell", "amount",
+	"rarity", "tier", "level", "coin", "money", "cash", "gold", "gem",
+}
+
+local function fmtVal(v)
+	if type(v) == "number" then
+		if v >= 1e9 then return string.format("%.1fB", v / 1e9) end
+		if v >= 1e6 then return string.format("%.1fM", v / 1e6) end
+		if v >= 1e4 then return string.format("%.1fK", v / 1e3) end
+		return tostring(math.floor(v * 100 + 0.5) / 100)
+	end
+	return tostring(v)
+end
+
+local function matchKey(name)
+	local ln = name:lower()
+	for _, k in ipairs(VALUE_KEYS) do
+		if ln:find(k, 1, true) then return true end
+	end
+	return false
+end
+
+local function findValue(root)
+	-- 1) Attribute có tên giống giá trị
+	for name, v in pairs(root:GetAttributes()) do
+		if (type(v) == "number" or type(v) == "string") and matchKey(name) then
+			return name, v
+		end
+	end
+	-- 2) Value con có tên giống giá trị
+	local fallbackName, fallbackVal
+	for _, c in ipairs(root:GetChildren()) do
+		if c:IsA("NumberValue") or c:IsA("IntValue") or c:IsA("StringValue") then
+			if matchKey(c.Name) then return c.Name, c.Value end
+			if not fallbackName and not c:IsA("StringValue") then
+				fallbackName, fallbackVal = c.Name, c.Value
+			end
+		end
+	end
+	-- 3) không khớp tên thì lấy Value số đầu tiên
+	return fallbackName, fallbackVal
+end
+
+local function itemValueText(data)
+	local inst = data.Inst
+	local roots = { inst }
+	if data.Kind == "Tool" then
+		local h = inst:FindFirstChild("Handle")
+		if h then roots[#roots + 1] = h end
+	else
+		local par = inst.Parent
+		if par then roots[#roots + 1] = par end
+		local m = inst:FindFirstAncestorWhichIsA("Model")
+		if m and m ~= par then roots[#roots + 1] = m end
+	end
+
+	for _, r in ipairs(roots) do
+		local name, v = findValue(r)
+		if name ~= nil then return name .. ": " .. fmtVal(v) end
+	end
+
+	-- nhiều game ghi giá trong ActionText của prompt (vd "Buy $100")
+	if data.Kind == "Prompt" then
+		local a = inst.ActionText
+		if a ~= "" and a:lower() ~= "interact" then return a end
+	elseif inst.ToolTip ~= "" then
+		return inst.ToolTip
+	end
+	return nil
+end
+
+-- Tool đang được cầm (nằm trong nhân vật) thì không tính là đồ rơi
+local function itemValid(data)
+	local inst = data.Inst
+	if data.Kind == "Tool" then
+		local par = inst.Parent
+		return par ~= nil and not par:FindFirstChildOfClass("Humanoid")
+	end
+	return inst.Enabled
+end
+
+local function removeItem(inst)
+	local data = ITEM.Tracked[inst]
+	if not data then return end
+	data.Gui:Destroy()
+	ITEM.Tracked[inst] = nil
+end
+
+local function addItem(inst)
+	if ITEM.Tracked[inst] then return end
+	local kind
+	if inst.ClassName == "Tool" then
+		if not CFG.espItem then return end
+		kind = "Tool"
+	elseif inst.ClassName == "ProximityPrompt" then
+		if not CFG.espPrompt then return end
+		if inst:FindFirstAncestorOfClass("Tool") then return end
+		local m = inst:FindFirstAncestorWhichIsA("Model")
+		if m and m:FindFirstChildOfClass("Humanoid") then return end
+		kind = "Prompt"
+	else
+		return
+	end
+
+	local part = itemPart(inst, kind)
+	local bb = make("BillboardGui", {
+		Adornee = part,
+		AlwaysOnTop = true,
+		Enabled = false,
+		Size = UDim2.fromOffset(220, 20),
+		StudsOffset = Vector3.new(0, 1.5, 0),
+	}, espFolder)
+	local lbl = make("TextLabel", {
+		BackgroundTransparency = 1,
+		Size = UDim2.fromScale(1, 1),
+		Font = Enum.Font.GothamBold,
+		TextSize = 11,
+		TextColor3 = kind == "Tool" and ITEM_CFG.ToolColor or ITEM_CFG.PromptColor,
+		TextStrokeTransparency = 0.3,
+	}, bb)
+
+	ITEM.Tracked[inst] = {
+		Inst = inst, Kind = kind, Part = part,
+		Gui = bb, Label = lbl, Shown = false, Dist = 0,
+	}
+end
+
+local function setItemShown(data, on)
+	if data.Shown ~= on then
+		data.Shown = on
+		data.Gui.Enabled = on
+	end
+end
+
+local function clearItems()
+	for inst in pairs(ITEM.Tracked) do removeItem(inst) end
+	for _, c in ipairs(ITEM.Conns) do c:Disconnect() end
+	table.clear(ITEM.Conns)
+end
+
+local function startItems()
+	local gen = ITEM.Gen
+
+	-- quét nền, chia nhỏ từng đợt
+	task.spawn(function()
+		local n = 0
+		for _, v in ipairs(workspace:GetDescendants()) do
+			if ITEM.Gen ~= gen then return end
+			local c = v.ClassName
+			if c == "Tool" or c == "ProximityPrompt" then addItem(v) end
+			n += 1
+			if n % 2000 == 0 then task.wait() end
+		end
+	end)
+
+	-- vật phẩm mới xuất hiện / đồ bị vứt xuống
+	table.insert(ITEM.Conns, workspace.DescendantAdded:Connect(function(v)
+		local c = v.ClassName
+		if c ~= "Tool" and c ~= "ProximityPrompt" then return end
+		task.defer(function()
+			if ITEM.Gen == gen then addItem(v) end
+		end)
+	end))
+
+	-- vật phẩm bị nhặt / xoá
+	table.insert(ITEM.Conns, workspace.DescendantRemoving:Connect(function(v)
+		if ITEM.Tracked[v] then removeItem(v) end
+	end))
+
+	local acc, list = 0, {}
+	table.insert(ITEM.Conns, RunService.Heartbeat:Connect(function(dt)
+		acc += dt
+		if acc < ITEM_CFG.UpdateRate then return end
+		acc = 0
+
+		local cam = workspace.CurrentCamera
+		local myRoot = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+		local origin = myRoot and myRoot.Position or (cam and cam.CFrame.Position) or Vector3.zero
+		table.clear(list)
+
+		for inst, data in pairs(ITEM.Tracked) do
+			if not inst.Parent then
+				removeItem(inst)
+			else
+				local part = data.Part
+				if not part or not part.Parent then
+					part = itemPart(inst, data.Kind)
+					data.Part = part
+					data.Gui.Adornee = part
+				end
+				if part and itemValid(data) then
+					local dist = (part.Position - origin).Magnitude
+					if dist <= CFG.espDist then
+						data.Dist = dist
+						list[#list + 1] = data
+					else
+						setItemShown(data, false)
+					end
+				else
+					setItemShown(data, false)
+				end
+			end
+		end
+
+		table.sort(list, function(a, b) return a.Dist < b.Dist end)
+
+		for i, data in ipairs(list) do
+			if i > CFG.itemMax then
+				setItemShown(data, false)
+			else
+				setItemShown(data, true)
+				local d = math.floor(data.Dist / 5 + 0.5) * 5
+				local nm = itemName(data.Inst, data.Kind)
+				local val = itemValueText(data)
+				local txt
+				if val then
+					txt = string.format("%s [%s] | %dm", nm, val, d)
+				else
+					txt = string.format("%s | %dm", nm, d)
+				end
+				if data.Label.Text ~= txt then data.Label.Text = txt end
+			end
+		end
+	end))
+end
+
+function ITEM.Refresh()
+	ITEM.Gen += 1
+	clearItems()
+	if CFG.espItem or CFG.espPrompt then startItems() end
+end
+
+function ITEM.CountKind(kind)
+	local n = 0
+	for _, d in pairs(ITEM.Tracked) do
+		if d.Kind == kind then n += 1 end
+	end
+	return n
+end
+
+----------------------------------------------------------------
+-- KHUNG HUB
+----------------------------------------------------------------
+local hub = make("Frame", {
+	Name = "Hub",
+	Size = UDim2.fromOffset(W, H_FULL),
+	AnchorPoint = Vector2.new(0.5, 0),
+	Position = UDim2.new(0.5, 0, 0.5, -H_FULL / 2),
+	BackgroundColor3 = Color3.new(1, 1, 1),
+	Visible = false,
+	Active = true,  -- chặn click xuyên xuống game
+	ClipsDescendants = true,
+}, gui)
+corner(hub, 14)
+make("UIGradient", {
+	Color = ColorSequence.new(Color3.fromRGB(17, 20, 30), Color3.fromRGB(8, 9, 13)),
+	Rotation = 90,
+}, hub)
+
+local hubScale = make("UIScale", { Scale = 1 }, hub)
+
+-- viền neon chạy màu
+local hubStroke = make("UIStroke", {
+	Thickness = 2,
+	Color = Color3.new(1, 1, 1),
+	ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+}, hub)
+local hubGrad = make("UIGradient", {
+	Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, THEME.Accent),
+		ColorSequenceKeypoint.new(0.5, THEME.Accent2),
+		ColorSequenceKeypoint.new(1, THEME.Accent),
+	}),
+}, hubStroke)
+
+if ANIMATIONS then
+	local accG = 0
+	track(RunService.Heartbeat:Connect(function(dt)
+		if not hub.Visible then accG = 0 return end
+		accG += dt
+		if accG < 1 / 20 then return end  -- 20 lần/giây là đủ mượt
+		hubGrad.Rotation = (hubGrad.Rotation + accG * 90) % 360
+		accG = 0
+	end))
+end
+
+-- header
+local header = make("Frame", {
+	Size = UDim2.new(1, 0, 0, H_MIN),
+	BackgroundColor3 = Color3.new(1, 1, 1),
+	BorderSizePixel = 0,
+}, hub)
+make("UIGradient", {
+	Color = ColorSequence.new(Color3.fromRGB(28, 32, 48), Color3.fromRGB(16, 18, 26)),
+	Rotation = 90,
+}, header)
+
+-- chỉ kéo hub bằng thanh tiêu đề (để các trang bên trong cuộn được)
+makeDraggable(hub, header)
+
+local title = make("TextLabel", {
+	BackgroundTransparency = 1,
+	Position = UDim2.fromOffset(10, 3),
+	Size = UDim2.new(1, -100, 0, 18),
+	Text = "☠ VƯƠNG HÓNG HỚT",
+	Font = Enum.Font.GothamBlack,
+	TextSize = 13,
+	TextColor3 = Color3.new(1, 1, 1),
+	TextXAlignment = Enum.TextXAlignment.Left,
+}, header)
+make("UIGradient", { Color = ColorSequence.new(THEME.Accent, THEME.Accent2) }, title)
+
+make("TextLabel", {
+	BackgroundTransparency = 1,
+	Position = UDim2.fromOffset(10, 21),
+	Size = UDim2.new(1, -100, 0, 12),
+	Text = "HUB  •  GAMING EDITION",
+	Font = Enum.Font.GothamMedium,
+	TextSize = 9,
+	TextColor3 = THEME.Sub,
+	TextXAlignment = Enum.TextXAlignment.Left,
+}, header)
+
+-- đường sáng dưới header
+local line = make("Frame", {
+	AnchorPoint = Vector2.new(0, 1),
+	Position = UDim2.fromScale(0, 1),
+	Size = UDim2.new(1, 0, 0, 2),
+	BackgroundColor3 = Color3.new(1, 1, 1),
+	BorderSizePixel = 0,
+}, header)
+make("UIGradient", { Color = ColorSequence.new(THEME.Accent, THEME.Accent2) }, line)
+
+local function headerBtn(text, xOff, color)
+	local b = make("TextButton", {
+		Size = UDim2.fromOffset(24, 24),
+		Position = UDim2.new(1, xOff, 0, 6),
+		Text = text,
+		Font = Enum.Font.GothamBold,
+		TextSize = 12,
+		TextColor3 = Color3.new(1, 1, 1),
+		BackgroundColor3 = color,
+	}, header)
+	corner(b, 8)
+	return b
+end
+
+local minBtn = headerBtn("_", -56, Color3.fromRGB(46, 50, 66))
+local closeBtn = headerBtn("X", -30, THEME.Danger)
+
+-- body
+local body = make("Frame", {
+	Position = UDim2.fromOffset(0, H_MIN),
+	Size = UDim2.new(1, 0, 1, -H_MIN),
+	BackgroundTransparency = 1,
+}, hub)
+
+-- thanh tab
+local tabBar = make("Frame", {
+	Position = UDim2.fromOffset(8, 6),
+	Size = UDim2.new(1, -16, 0, 24),
+	BackgroundTransparency = 1,
+}, body)
+make("UIListLayout", {
+	FillDirection = Enum.FillDirection.Horizontal,
+	Padding = UDim.new(0, 4),
+	SortOrder = Enum.SortOrder.LayoutOrder,
+}, tabBar)
+
+-- khu vực chứa các trang
+local pageHolder = make("Frame", {
+	Position = UDim2.fromOffset(8, 36),
+	Size = UDim2.new(1, -16, 1, -72),
+	BackgroundTransparency = 1,
+}, body)
+
+-- thanh trạng thái
+local footer = make("Frame", {
+	AnchorPoint = Vector2.new(0, 1),
+	Position = UDim2.new(0, 8, 1, -6),
+	Size = UDim2.new(1, -16, 0, 22),
+	BackgroundColor3 = THEME.Panel,
+}, body)
+corner(footer, 8)
+
+local dot = make("Frame", {
+	Size = UDim2.fromOffset(8, 8),
+	Position = UDim2.new(0, 10, 0.5, -4),
+	BackgroundColor3 = THEME.Accent,
+}, footer)
+corner(dot, 4)
+
+local statusLbl = make("TextLabel", {
+	BackgroundTransparency = 1,
+	Position = UDim2.fromOffset(26, 0),
+	Size = UDim2.new(1, -120, 1, 0),
+	Text = "Ready",
+	Font = Enum.Font.GothamMedium,
+	TextSize = 11,
+	TextColor3 = THEME.Sub,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	TextTruncate = Enum.TextTruncate.AtEnd,
+}, footer)
+
+local function setStatus(t)
+	statusLbl.Text = t
+	dot.BackgroundColor3 = THEME.Accent2
+	tw(dot, 0.6, { BackgroundColor3 = THEME.Accent })
+end
+
+-- báo trạng thái, trừ lúc đang khởi động
+local function say(t)
+	if not booting then setStatus(t) end
+end
+
+-- ===== Phóng to / thu nhỏ menu =====
+local zoom = 1
+local ZOOM_MIN, ZOOM_MAX, ZOOM_STEP = 0.6, 1.3, 0.1
+
+local function zoomBtn(text, xOff)
+	local b = make("TextButton", {
+		AnchorPoint = Vector2.new(1, 0.5),
+		Position = UDim2.new(1, xOff, 0.5, 0),
+		Size = UDim2.fromOffset(24, 16),
+		BackgroundColor3 = Color3.fromRGB(46, 50, 66),
+		Text = text,
+		Font = Enum.Font.GothamBold,
+		TextSize = 9,
+		TextColor3 = Color3.new(1, 1, 1),
+	}, footer)
+	corner(b, 5)
+	return b
+end
+
+local zoomIn = zoomBtn("A+", -6)
+local zoomLbl = make("TextLabel", {
+	AnchorPoint = Vector2.new(1, 0.5),
+	Position = UDim2.new(1, -32, 0.5, 0),
+	Size = UDim2.fromOffset(32, 16),
+	BackgroundTransparency = 1,
+	Text = "100%",
+	Font = Enum.Font.GothamBold,
+	TextSize = 9,
+	TextColor3 = THEME.Sub,
+}, footer)
+local zoomOut = zoomBtn("A-", -66)
+
+local function applyZoom(z)
+	zoom = math.clamp(math.floor(z * 10 + 0.5) / 10, ZOOM_MIN, ZOOM_MAX)
+	CFG.zoom = zoom
+	zoomLbl.Text = math.floor(zoom * 100 + 0.5) .. "%"
+	tw(hubScale, 0.15, { Scale = zoom })
+	save()
+end
+
+zoomIn.MouseButton1Click:Connect(function() applyZoom(zoom + ZOOM_STEP) end)
+zoomOut.MouseButton1Click:Connect(function() applyZoom(zoom - ZOOM_STEP) end)
+
+----------------------------------------------------------------
+-- TÍNH NĂNG: SPEED / JUMP (ghi đè thuộc tính Humanoid)
+----------------------------------------------------------------
+local function getHum()
+	local c = p.Character
+	return c and c:FindFirstChildOfClass("Humanoid")
+end
+
+-- resolve(hum, v) trả về (tên thuộc tính, giá trị cần đặt)
+-- watch: các thuộc tính cần theo dõi để đặt lại khi game đổi
+local function newHumFeature(onKey, valKey, watch, resolve)
+	local F = { Conns = {}, Hum = nil, Prop = nil, Orig = nil }
+
+	local function enforce(hum)
+		local prop, val = resolve(hum, CFG[valKey])
+		if math.abs(hum[prop] - val) > 0.01 then hum[prop] = val end
+	end
+
+	-- nhớ giá trị gốc (chỉ 1 lần cho mỗi Humanoid) để trả lại khi tắt
+	local function capture(hum)
+		if F.Hum == hum then return end
+		F.Hum = hum
+		F.Prop = (resolve(hum, CFG[valKey]))
+		F.Orig = hum[F.Prop]
+	end
+
+	local function disconnectAll()
+		for _, c in ipairs(F.Conns) do c:Disconnect() end
+		table.clear(F.Conns)
+	end
+
+	-- gắn vào Humanoid mới (lúc hồi sinh)
+	function F.Bind(hum)
+		disconnectAll()
+		if not hum then return end
+		if CFG[onKey] then
+			capture(hum)
+			enforce(hum)
+		end
+
+		local n, t0 = 0, os.clock()
+		local function onChange()
+			if not CFG[onKey] then return end
+			local now = os.clock()
+			if now - t0 > 1 then n, t0 = 0, now end
+			n += 1
+			if n > 120 then return end  -- game ghi đè liên tục: bỏ cuộc để khỏi lag
+			enforce(hum)
+		end
+		for _, name in ipairs(watch) do
+			table.insert(F.Conns, hum:GetPropertyChangedSignal(name):Connect(onChange))
+		end
+	end
+
+	function F.Set(on)
+		local hum = getHum()
+		if not hum then return end
+		if on then
+			capture(hum)
+			enforce(hum)
+		elseif F.Hum == hum and F.Prop and F.Orig then
+			hum[F.Prop] = F.Orig
+		end
+	end
+
+	-- gọi khi đổi giá trị lúc đang bật
+	function F.Update()
+		local hum = getHum()
+		if hum and CFG[onKey] then
+			capture(hum)
+			enforce(hum)
+		end
+	end
+
+	-- kiểm tra xem game có đang ghi đè không
+	function F.Verify(label)
+		task.delay(1.5, function()
+			local hum = getHum()
+			if not alive or not hum or not CFG[onKey] then return end
+			local prop, val = resolve(hum, CFG[valKey])
+			if math.abs(hum[prop] - val) > 0.5 then
+				setStatus(label .. ": game đang ghi đè, có thể không hiệu quả")
+			end
+		end)
+	end
+
+	function F.Stop()
+		F.Set(false)
+		disconnectAll()
+	end
+
+	return F
+end
+
+local SpeedF = newHumFeature("speedOn", "speedVal", { "WalkSpeed" }, function(hum, v)
+	return "WalkSpeed", v
+end)
+
+local JumpF = newHumFeature("jumpOn", "jumpVal", { "JumpPower", "JumpHeight", "UseJumpPower" }, function(hum, v)
+	if hum.UseJumpPower then return "JumpPower", v end
+	return "JumpHeight", (v * v) / (2 * workspace.Gravity)  -- đổi JumpPower sang JumpHeight
+end)
+
+----------------------------------------------------------------
+-- TÍNH NĂNG: NOCLIP / INFINITE JUMP / FLY
+----------------------------------------------------------------
+-- Noclip: tắt va chạm các bộ phận của nhân vật, nhớ để trả lại khi tắt
+local NC = { Conn = nil, Saved = {} }
+
+function NC.Set(on)
+	if NC.Conn then NC.Conn:Disconnect() NC.Conn = nil end
+	if on then
+		NC.Conn = RunService.Stepped:Connect(function()
+			local c = p.Character
+			if not c then return end
+			for _, v in ipairs(c:GetChildren()) do
+				if v:IsA("BasePart") and v.CanCollide then
+					NC.Saved[v] = true
+					v.CanCollide = false
+				end
+			end
+		end)
+	else
+		for part in pairs(NC.Saved) do
+			if part.Parent then part.CanCollide = true end
+		end
+		table.clear(NC.Saved)
+	end
+end
+
+-- Đi bộ an toàn tới 1 toạ độ: tạm bật Noclip trong lúc di chuyển (nếu chưa bật sẵn) để
+-- không bị kẹt địa hình, chuyển Humanoid sang trạng thái Physics để tránh giật (xem lý do
+-- trong phần TP khu vực trước đây), xong tự trả mọi thứ về trạng thái cũ khi tới nơi.
+local function safeWalkToPos(targetPos, label)
+	task.spawn(function()
+		local char = p.Character
+		local hrp = char and char:FindFirstChild("HumanoidRootPart")
+		local hum = char and char:FindFirstChildOfClass("Humanoid")
+		if not hrp or not hum then
+			say("TP: chưa có nhân vật")
+			return
+		end
+
+		local wasNoclip = CFG.noclip
+		if not wasNoclip then NC.Set(true) end
+		say("Đang TP tới " .. label .. "...")
+
+		hum:ChangeState(Enum.HumanoidStateType.Physics)
+
+		local WALK_SPEED = 130
+		local conn
+		conn = RunService.Heartbeat:Connect(function(dt)
+			if not alive or not hrp.Parent then
+				if conn then conn:Disconnect() conn = nil end
+				return
+			end
+			local dir = targetPos - hrp.Position
+			local dist = dir.Magnitude
+			if dist <= 3 then
+				if conn then conn:Disconnect() conn = nil end
+				return
+			end
+			local step = math.min(WALK_SPEED * dt, dist)
+			hrp.CFrame = CFrame.new(hrp.Position + dir.Unit * step, hrp.Position + dir)
+		end)
+
+		while conn do task.wait(0.05) end
+
+		if hrp.Parent then
+			hrp.CFrame = CFrame.new(targetPos)
+			hum:ChangeState(Enum.HumanoidStateType.GettingUp)
+		end
+
+		if not wasNoclip then NC.Set(false) end
+		say("Đã tới " .. label)
+	end)
+end
+
+-- Infinite Jump: nhảy tiếp khi đang ở trên không
+local IJ = { Conn = nil }
+
+function IJ.Set(on)
+	if IJ.Conn then IJ.Conn:Disconnect() IJ.Conn = nil end
+	if on then
+		IJ.Conn = UIS.JumpRequest:Connect(function()
+			local hum = getHum()
+			if hum then hum:ChangeState(Enum.HumanoidStateType.Jumping) end
+		end)
+	end
+end
+
+-- Fly: bay theo hướng camera. PC: Space lên, Ctrl xuống
+local FLY = { Conn = nil, Objs = {} }
+
+local function flyStop(restore)
+	local wasFlying = #FLY.Objs > 0
+	if FLY.Conn then FLY.Conn:Disconnect() FLY.Conn = nil end
+	for _, o in ipairs(FLY.Objs) do pcall(function() o:Destroy() end) end
+	table.clear(FLY.Objs)
+	if restore and wasFlying then
+		local hum = getHum()
+		if hum then
+			hum.PlatformStand = false
+			hum:ChangeState(Enum.HumanoidStateType.GettingUp)
+		end
+	end
+end
+
+local function flyStart()
+	flyStop(false)
+	local char = p.Character
+	local hrp = char and char:FindFirstChild("HumanoidRootPart")
+	local hum = getHum()
+	if not hrp or not hum then return false end
+
+	local att = make("Attachment", { Name = "VuongFlyAtt" }, hrp)
+	local lv = make("LinearVelocity", {
+		Attachment0 = att,
+		VelocityConstraintMode = Enum.VelocityConstraintMode.Vector,
+		MaxForce = math.huge,
+		VectorVelocity = Vector3.zero,
+		RelativeTo = Enum.ActuatorRelativeTo.World,
+	}, hrp)
+	local ao = make("AlignOrientation", {
+		Mode = Enum.OrientationAlignmentMode.OneAttachment,
+		Attachment0 = att,
+		RigidityEnabled = true,
+		CFrame = hrp.CFrame,
+	}, hrp)
+	FLY.Objs = { att, lv, ao }
+	hum.PlatformStand = true
+
+	local lastFlat = Vector3.new(0, 0, -1)
+	FLY.Conn = RunService.RenderStepped:Connect(function()
+		local cam = workspace.CurrentCamera
+		if not cam or not hrp.Parent then return end
+
+		local look = cam.CFrame.LookVector
+		local flat = Vector3.new(look.X, 0, look.Z)
+		if flat.Magnitude > 0.05 then lastFlat = flat.Unit end
+		local right = lastFlat:Cross(Vector3.yAxis)
+
+		-- hướng đi (joystick / WASD) chiếu lên hướng nhìn camera
+		local md = hum.MoveDirection
+		local vel = look * md:Dot(lastFlat) + right * md:Dot(right)
+		if UIS:IsKeyDown(Enum.KeyCode.Space) then vel += Vector3.yAxis end
+		if UIS:IsKeyDown(Enum.KeyCode.LeftControl) then vel -= Vector3.yAxis end
+		if vel.Magnitude > 1 then vel = vel.Unit end
+
+		lv.VectorVelocity = vel * CFG.flySpeed
+		ao.CFrame = CFrame.lookAt(hrp.Position, hrp.Position + lastFlat)
+	end)
+	return true
+end
+
+-- hồi sinh: gắn lại các tính năng vào nhân vật mới
+local function onCharacter(char)
+	local hum = char:WaitForChild("Humanoid", 10)
+	if not alive or not hum then return end
+	SpeedF.Bind(hum)
+	JumpF.Bind(hum)
+	if CFG.fly then
+		char:WaitForChild("HumanoidRootPart", 10)
+		if alive and CFG.fly then flyStart() end
+	end
+end
+
+----------------------------------------------------------------
+-- TÍNH NĂNG: AUTO NÉ QUÁI (giữ khoảng cách an toàn, quái khó áp sát để đánh trúng)
+----------------------------------------------------------------
+-- Khác với cách "hồi máu khi bị đánh" (đã bỏ vì không ăn ở game có server kiểm tra máu),
+-- cách này chỉ đẩy nhân vật ra xa quái/NPC bằng CFrame — cùng cơ chế với Speed/Fly/Noclip
+-- đang dùng tốt trong hub, nên khả năng hoạt động cao hơn nhiều.
+local DODGE = { Tracked = {}, Conns = {}, Gen = 0 }
+local DODGE_PUSH_SPEED = 50 -- tốc độ né ra xa (stud/giây)
+
+local function dodgeIsMonster(model)
+	if not model:IsA("Model") or model == p.Character then return false end
+	if Players:GetPlayerFromCharacter(model) then return false end  -- chỉ né quái/NPC, không né người chơi khác
+	return model:FindFirstChildOfClass("Humanoid") ~= nil
+end
+
+local function dodgeAdd(model)
+	if DODGE.Tracked[model] or not dodgeIsMonster(model) then return end
+	local root = model:FindFirstChild("HumanoidRootPart") or model.PrimaryPart
+	if root then DODGE.Tracked[model] = root end
+end
+
+local function dodgeClear()
+	table.clear(DODGE.Tracked)
+	for _, c in ipairs(DODGE.Conns) do c:Disconnect() end
+	table.clear(DODGE.Conns)
+end
+
+local function dodgeStart()
+	local gen = DODGE.Gen
+	task.spawn(function()
+		local n = 0
+		for _, v in ipairs(workspace:GetDescendants()) do
+			if DODGE.Gen ~= gen then return end
+			if v.ClassName == "Humanoid" and v.Parent then dodgeAdd(v.Parent) end
+			n += 1
+			if n % 2000 == 0 then task.wait() end
+		end
+	end)
+	table.insert(DODGE.Conns, workspace.DescendantAdded:Connect(function(v)
+		if v.ClassName ~= "Humanoid" then return end
+		task.spawn(function()
+			local m = v.Parent
+			if not m then return end
+			m:WaitForChild("HumanoidRootPart", 3)
+			if DODGE.Gen == gen then dodgeAdd(m) end
+		end)
+	end))
+	table.insert(DODGE.Conns, workspace.DescendantRemoving:Connect(function(v)
+		if DODGE.Tracked[v] then DODGE.Tracked[v] = nil end
+	end))
+end
+
+function DODGE.Refresh()
+	DODGE.Gen += 1
+	dodgeClear()
+	if CFG.autoDodge then dodgeStart() end
+end
+
+-- mỗi khung hình: cộng dồn hướng né từ mọi quái trong bán kính, đẩy ra xa theo hướng đó
+track(RunService.Heartbeat:Connect(function(dt)
+	if not CFG.autoDodge then return end
+	local char = p.Character
+	local hrp = char and char:FindFirstChild("HumanoidRootPart")
+	if not hrp then return end
+
+	local myPos = hrp.Position
+	local radius = CFG.dodgeRadius
+	local push = Vector3.zero
+	for model, root in pairs(DODGE.Tracked) do
+		if root.Parent then
+			local diff = myPos - root.Position
+			diff = Vector3.new(diff.X, 0, diff.Z)  -- chỉ né theo phương ngang
+			local dist = diff.Magnitude
+			if dist < radius and dist > 0.1 then
+				local strength = (radius - dist) / radius  -- càng gần đẩy càng mạnh
+				push = push + diff.Unit * strength
+			end
+		else
+			DODGE.Tracked[model] = nil
+		end
+	end
+
+	if push.Magnitude > 0.01 then
+		hrp.CFrame = hrp.CFrame + push.Unit * (DODGE_PUSH_SPEED * dt)
+	end
+end))
+
+----------------------------------------------------------------
+-- TÍNH NĂNG: FIX LAG (giảm đồ họa để tăng FPS, hoàn tác được)
+----------------------------------------------------------------
+local LAG = {
+	Orig = setmetatable({}, { __mode = "k" }),  -- giá trị gốc của từng vật thể
+	OrigQuality = nil,
+	OrigTech = nil,
+	Conns = {},
+	Gen = 0,
+}
+
+-- đổi thuộc tính nhưng nhớ giá trị gốc (chỉ nhớ lần đầu) để khôi phục
+local function lagSet(inst, prop, value)
+	local rec = LAG.Orig[inst]
+	if not rec then
+		rec = {}
+		LAG.Orig[inst] = rec
+	end
+	if rec[prop] == nil then rec[prop] = inst[prop] end
+	inst[prop] = value
+end
+
+local function lagProcess(v, level)
+	-- mức 1: tắt hiệu ứng nặng (hạt, vệt, tia, lửa, khói, bloom/blur...)
+	if v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Beam")
+		or v:IsA("Fire") or v:IsA("Smoke") or v:IsA("Sparkles") or v:IsA("PostEffect") then
+		lagSet(v, "Enabled", false)
+	elseif level >= 2 then
+		-- mức 2: đơn giản hoá vật liệu, bóng, hình dán (bỏ qua nhân vật cho khỏi xấu)
+		if v:IsA("BasePart") then
+			if not v:IsA("Terrain") and not (v.Parent and v.Parent:FindFirstChildOfClass("Humanoid")) then
+				lagSet(v, "Material", Enum.Material.SmoothPlastic)
+				lagSet(v, "CastShadow", false)
+				lagSet(v, "Reflectance", 0)
+			end
+		elseif v:IsA("Decal") then
+			local model = v.Parent and v.Parent.Parent
+			if not (model and model:FindFirstChildOfClass("Humanoid")) then
+				lagSet(v, "Transparency", 1)
+			end
+		end
+	end
+end
+
+function LAG.Restore()
+	LAG.Gen += 1  -- huỷ đợt quét đang chạy nền
+	for _, c in ipairs(LAG.Conns) do c:Disconnect() end
+	table.clear(LAG.Conns)
+
+	for inst, rec in pairs(LAG.Orig) do
+		if inst.Parent then
+			for prop, val in pairs(rec) do
+				pcall(function() inst[prop] = val end)
+			end
+		end
+	end
+	table.clear(LAG.Orig)
+
+	if LAG.OrigQuality ~= nil then
+		pcall(function()
+			UserSettings():GetService("UserGameSettings").SavedQualityLevel = LAG.OrigQuality
+		end)
+		LAG.OrigQuality = nil
+	end
+	if LAG.OrigTech ~= nil then
+		pcall(function() Lighting.Technology = LAG.OrigTech end)
+		LAG.OrigTech = nil
+	end
+end
+
+function LAG.Apply()
+	LAG.Restore()  -- luôn bắt đầu từ trạng thái gốc (đổi mức không bị chồng)
+	local gen = LAG.Gen
+	local level = CFG.lagLevel
+
+	-- đồ họa chung: đây là 2 dòng THẬT SỰ giảm tải máy rõ rệt nhất (đường dẫn cũ dùng
+	-- settings().Rendering.QualityLevel không phải thuộc tính có thật nên trước đây
+	-- không có tác dụng gì — chỉ là pcall nuốt lỗi âm thầm).
+	pcall(function()
+		local ugs = UserSettings():GetService("UserGameSettings")
+		LAG.OrigQuality = ugs.SavedQualityLevel
+		ugs.SavedQualityLevel = level >= 2
+			and Enum.SavedQualitySetting.QualityLevel1   -- Mạnh: giảm hết cỡ
+			or Enum.SavedQualitySetting.QualityLevel4    -- Nhẹ: giảm vừa phải
+	end)
+	pcall(function()
+		LAG.OrigTech = Lighting.Technology
+		-- Compatibility = không đổ bóng động, phẳng nhất, nhẹ nhất cho máy yếu
+		-- Voxel = vẫn có bóng nhưng nhẹ hơn nhiều so với ShadowMap/Future mặc định
+		Lighting.Technology = level >= 2 and Enum.Technology.Compatibility or Enum.Technology.Voxel
+	end)
+	pcall(lagSet, Lighting, "GlobalShadows", false)
+	if level >= 2 then pcall(lagSet, Lighting, "EnvironmentSpecularScale", 0) end
+
+	local terrain = workspace:FindFirstChildOfClass("Terrain")
+	if terrain then
+		pcall(lagSet, terrain, "WaterWaveSize", 0)
+		pcall(lagSet, terrain, "WaterWaveSpeed", 0)
+		pcall(lagSet, terrain, "WaterReflectance", 0)
+		pcall(lagSet, terrain, "Decoration", false)
+	end
+
+	-- vật thể mới xuất hiện sau đó
+	local function onAdded(v)
+		if LAG.Gen == gen then pcall(lagProcess, v, level) end
+	end
+	table.insert(LAG.Conns, workspace.DescendantAdded:Connect(onAdded))
+	table.insert(LAG.Conns, Lighting.DescendantAdded:Connect(onAdded))
+
+	-- quét nền theo kiểu "duyệt tới đâu xử lý tới đó" (không gọi GetDescendants() dựng
+	-- nguyên cả cây workspace thành 1 mảng khổng lồ cùng lúc — đó chính là chỗ gây đứng
+	-- hình 1 nhịp lúc vừa bật, nhất là map to nhiều vật thể). Duyệt bằng ngăn xếp thủ công,
+	-- xử lý xong một nhóm nhỏ là nghỉ 1 khung hình rồi mới đi tiếp.
+	local BATCH_SIZE = 250  -- nhỏ hơn để mỗi lần nghỉ đều đặn hơn, đỡ giật dù tổng thời gian quét lâu hơn chút
+
+	local function walkAndProcess(root)
+		local stack = { root }
+		local n = 0
+		while #stack > 0 do
+			if LAG.Gen ~= gen then return false, n end
+			local cur = table.remove(stack)
+			local ok, children = pcall(function() return cur:GetChildren() end)
+			if ok then
+				for _, child in ipairs(children) do
+					stack[#stack + 1] = child
+					pcall(lagProcess, child, level)
+					n += 1
+					if n % BATCH_SIZE == 0 then task.wait() end
+				end
+			end
+		end
+		return true, n
+	end
+
+	task.spawn(function()
+		local total = 0
+		local ok, n = walkAndProcess(Lighting)
+		total += n
+		if not ok then return end
+
+		local cam = workspace.CurrentCamera
+		if cam then
+			ok, n = walkAndProcess(cam)
+			total += n
+			if not ok then return end
+		end
+
+		ok, n = walkAndProcess(workspace)
+		total += n
+		if not ok then return end
+
+		if alive and not booting then
+			setStatus("Fix Lag xong • đã xử lý " .. total .. " vật thể")
+		end
+	end)
+end
+
+----------------------------------------------------------------
+-- TÍNH NĂNG: FULLBRIGHT (làm sáng toàn map)
+----------------------------------------------------------------
+-- Chỉ chỉnh thuộc tính ánh sáng/hiệu ứng tối phía máy mình (Lighting, Atmosphere,
+-- ColorCorrection, Sương mù) — không đụng gì tới gameplay hay dữ liệu server.
+local FULLBRIGHT = {
+	Orig = setmetatable({}, { __mode = "k" }),
+	Conns = {},
+	Gen = 0,
+}
+
+local function fbSet(inst, prop, value)
+	local rec = FULLBRIGHT.Orig[inst]
+	if not rec then
+		rec = {}
+		FULLBRIGHT.Orig[inst] = rec
+	end
+	if rec[prop] == nil then
+		local ok, cur = pcall(function() return inst[prop] end)
+		if not ok then return end
+		rec[prop] = cur
+	end
+	pcall(function() inst[prop] = value end)
+end
+
+-- xử lý các hiệu ứng hay dùng để làm map tối (sương mù ăn theo Atmosphere, lọc màu tối)
+local function fbProcessDarkening(inst)
+	if inst:IsA("Atmosphere") then
+		fbSet(inst, "Density", 0)
+		fbSet(inst, "Haze", 0)
+		fbSet(inst, "Glare", 0)
+	elseif inst:IsA("ColorCorrectionEffect") then
+		fbSet(inst, "Brightness", 0.15)
+		fbSet(inst, "Contrast", 0)
+		fbSet(inst, "Saturation", 0)
+		fbSet(inst, "TintColor", Color3.new(1, 1, 1))
+	end
+end
+
+function FULLBRIGHT.Restore()
+	FULLBRIGHT.Gen += 1
+	for _, c in ipairs(FULLBRIGHT.Conns) do c:Disconnect() end
+	table.clear(FULLBRIGHT.Conns)
+
+	for inst, rec in pairs(FULLBRIGHT.Orig) do
+		if inst and (inst.Parent or inst == Lighting) then
+			for prop, val in pairs(rec) do
+				pcall(function() inst[prop] = val end)
+			end
+		end
+	end
+	table.clear(FULLBRIGHT.Orig)
+end
+
+function FULLBRIGHT.Apply()
+	FULLBRIGHT.Restore()
+	local gen = FULLBRIGHT.Gen
+
+	fbSet(Lighting, "Brightness", 3)
+	fbSet(Lighting, "ClockTime", 14)
+	fbSet(Lighting, "GlobalShadows", false)
+	fbSet(Lighting, "OutdoorAmbient", Color3.fromRGB(180, 180, 180))
+	fbSet(Lighting, "Ambient", Color3.fromRGB(180, 180, 180))
+	fbSet(Lighting, "ExposureCompensation", 1)
+	fbSet(Lighting, "EnvironmentDiffuseScale", 1)
+	fbSet(Lighting, "EnvironmentSpecularScale", 1)
+	fbSet(Lighting, "FogStart", 0)
+	fbSet(Lighting, "FogEnd", 100000)
+
+	for _, v in ipairs(Lighting:GetChildren()) do
+		pcall(fbProcessDarkening, v)
+	end
+
+	-- hiệu ứng tối thêm vào sau (nhiều game đổi theo giờ/sự kiện trong map)
+	table.insert(FULLBRIGHT.Conns, Lighting.ChildAdded:Connect(function(v)
+		if FULLBRIGHT.Gen == gen then pcall(fbProcessDarkening, v) end
+	end))
+end
+
+----------------------------------------------------------------
+-- TÍNH NĂNG: TỰ ĐỘNG DỊCH CHAT SANG TIẾNG VIỆT
+----------------------------------------------------------------
+-- Dùng API dịch công khai của Google (không cần key). Chỉ dịch tin nhắn chat người chơi
+-- khác gửi, không đụng gì tới gameplay. Chỉ hoạt động với game dùng TextChatService
+-- (chat hiện đại của Roblox) — game nào còn dùng hệ chat cũ (bong bóng chữ kiểu cũ) thì
+-- tính năng này không can thiệp được vì Roblox không cho script đọc/sửa UI chat kiểu cũ.
+local TextChatService = game:GetService("TextChatService")
+-- Bảng cache bình thường, KHÔNG dùng weak table ở đây: key là chuỗi text, nếu đặt
+-- weak-key thì Lua có thể dọn rác các chuỗi này bất cứ lúc nào (vì không ai khác giữ
+-- tham chiếu tới chúng), khiến cache gần như vô tác dụng, dịch lại liên tục tốn request.
+local TRANSLATE_CACHE = {}
+
+local function translateToVi(text)
+	text = text and text:gsub("^%s+", ""):gsub("%s+$", "") or ""
+	if text == "" then return nil end
+	if TRANSLATE_CACHE[text] then return TRANSLATE_CACHE[text] end
+
+	local ok, result = pcall(function()
+		local url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=vi&dt=t&q="
+			.. HttpService:UrlEncode(text)
+		local body = httpGetText(url)
+		if not body then return nil end
+		local data = HttpService:JSONDecode(body)
+		local parts = {}
+		for _, seg in ipairs(data[1]) do
+			if seg[1] then parts[#parts + 1] = seg[1] end
+		end
+		local joined = table.concat(parts)
+		return joined ~= "" and joined or nil
+	end)
+
+	local translated = ok and result or nil
+	if translated then TRANSLATE_CACHE[text] = translated end
+	return translated
+end
+
+-- true khi câu dịch ra gần như y hệt câu gốc (đa phần game đã chat tiếng Việt sẵn) — bỏ qua
+-- cho đỡ tốn request, không cần hiện thêm dòng dịch thừa.
+local function looksSameIgnoreCase(a, b)
+	return a:lower() == b:lower()
+end
+
+local translateHook = nil
+local function setupAutoTranslate(on)
+	if translateHook then
+		pcall(function() TextChatService.OnIncomingMessage = nil end)
+		translateHook = nil
+	end
+	if not on then return end
+
+	translateHook = function(message)
+		local props = Instance.new("TextChatMessageProperties")
+		props.Text = message.Text
+		if not CFG.autoTranslate then return props end
+
+		-- QUAN TRỌNG: phải dịch NGAY TRONG callback này (được phép "treo" chờ ở đây,
+		-- Roblox tự đợi), KHÔNG được task.spawn ra ngoài rồi return props trước — vì
+		-- Roblox lấy giá trị props ngay tại thời điểm hàm return, sửa props sau đó
+		-- (từ một luồng khác) sẽ không còn tác dụng gì với tin nhắn đã hiển thị nữa.
+		local translated = translateToVi(message.Text)
+		if translated and not looksSameIgnoreCase(translated, message.Text) then
+			props.Text = message.Text .. "\n🇻🇳 " .. translated
+		end
+		return props
+	end
+	TextChatService.OnIncomingMessage = translateHook
+end
+
+----------------------------------------------------------------
+-- BỘ DỰNG GIAO DIỆN: TRANG, HÀNG, NÚT
+----------------------------------------------------------------
+local controls = {}  -- key -> { Refresh, Apply }: dùng cho khởi động + đặt lại mặc định
+local tabs = {}
+local refreshInfo = function() end  -- gán ở trang Info
+
+local orders = setmetatable({}, { __mode = "k" })
+local function nxt(page)
+	orders[page] = (orders[page] or 0) + 1
+	return orders[page]
+end
+
+local function newPage()
+	local sf = make("ScrollingFrame", {
+		Size = UDim2.fromScale(1, 1),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		ScrollBarThickness = 3,
+		ScrollBarImageColor3 = THEME.Accent,
+		AutomaticCanvasSize = Enum.AutomaticSize.Y,
+		CanvasSize = UDim2.new(),
+		Visible = false,
+	}, pageHolder)
+	make("UIListLayout", {
+		Padding = UDim.new(0, 5),
+		SortOrder = Enum.SortOrder.LayoutOrder,
+	}, sf)
+	make("UIPadding", { PaddingRight = UDim.new(0, 6) }, sf)
+	return sf
+end
+
+local function selectTab(id)
+	for tid, t in pairs(tabs) do
+		local on = tid == id
+		t.Page.Visible = on
+		tw(t.Btn, 0.15, { BackgroundColor3 = on and THEME.CardOn or THEME.Card })
+		t.Btn.TextColor3 = on and THEME.Accent or THEME.Sub
+		t.Stroke.Color = on and THEME.Accent or THEME.Off
+		t.Stroke.Transparency = on and 0 or 0.6
+	end
+	if id == "INFO" then refreshInfo() end
+end
+
+local function addTab(order, id, label)
+	local page = newPage()
+	local btn = make("TextButton", {
+		LayoutOrder = order,
+		Size = UDim2.new(0.25, -3, 1, 0),
+		BackgroundColor3 = THEME.Card,
+		AutoButtonColor = false,
+		Text = label,
+		Font = Enum.Font.GothamBold,
+		TextSize = 10,
+		TextColor3 = THEME.Sub,
+	}, tabBar)
+	corner(btn, 7)
+	local st = make("UIStroke", {
+		Color = THEME.Off,
+		Thickness = 1,
+		Transparency = 0.6,
+		ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+	}, btn)
+	tabs[id] = { Page = page, Btn = btn, Stroke = st }
+	btn.MouseButton1Click:Connect(function() selectTab(id) end)
+	return page
+end
+
+local function section(page, text)
+	make("TextLabel", {
+		BackgroundTransparency = 1,
+		Size = UDim2.new(1, 0, 0, 18),
+		Text = text,
+		Font = Enum.Font.GothamBlack,
+		TextSize = 11,
+		TextColor3 = THEME.Accent,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		LayoutOrder = nxt(page),
+	}, page)
+end
+
+local function note(page, text)
+	make("TextLabel", {
+		BackgroundTransparency = 1,
+		Size = UDim2.new(1, 0, 0, 28),
+		Text = text,
+		Font = Enum.Font.GothamMedium,
+		TextSize = 9,
+		TextColor3 = THEME.Sub,
+		TextWrapped = true,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextYAlignment = Enum.TextYAlignment.Top,
+		LayoutOrder = nxt(page),
+	}, page)
+end
+
+local function row(page, labelText, initial)
+	local f = make("Frame", {
+		Size = UDim2.new(1, 0, 0, 26),
+		BackgroundColor3 = THEME.Card,
+		LayoutOrder = nxt(page),
+	}, page)
+	corner(f, 8)
+	make("TextLabel", {
+		BackgroundTransparency = 1,
+		Position = UDim2.fromOffset(10, 0),
+		Size = UDim2.new(0.38, 0, 1, 0),
+		Text = labelText,
+		Font = Enum.Font.GothamMedium,
+		TextSize = 11,
+		TextColor3 = THEME.Sub,
+		TextXAlignment = Enum.TextXAlignment.Left,
+	}, f)
+	return make("TextLabel", {
+		BackgroundTransparency = 1,
+		Position = UDim2.new(0.38, 0, 0, 0),
+		Size = UDim2.new(0.62, -10, 1, 0),
+		Text = initial,
+		Font = Enum.Font.GothamBold,
+		TextSize = 11,
+		TextColor3 = THEME.Text,
+		TextXAlignment = Enum.TextXAlignment.Right,
+		TextTruncate = Enum.TextTruncate.AtEnd,
+	}, f)
+end
+
+-- công tắc bật/tắt gắn với CFG[key]
+local function addToggle(page, icon, text, key, apply)
+	local b = make("TextButton", {
+		Text = "",
+		AutoButtonColor = false,
+		Size = UDim2.new(1, 0, 0, 30),
+		BackgroundColor3 = THEME.Card,
+		LayoutOrder = nxt(page),
+	}, page)
+	corner(b, 8)
+	local st = make("UIStroke", {
+		Color = THEME.Off,
+		Thickness = 1.2,
+		Transparency = 0.5,
+		ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+	}, b)
+
+	make("TextLabel", {
+		BackgroundTransparency = 1,
+		Position = UDim2.fromOffset(8, 0),
+		Size = UDim2.fromOffset(22, 30),
+		Text = icon,
+		TextSize = 15,
+		TextColor3 = THEME.Text,
+	}, b)
+	make("TextLabel", {
+		BackgroundTransparency = 1,
+		Position = UDim2.fromOffset(32, 0),
+		Size = UDim2.new(1, -84, 1, 0),
+		Text = text,
+		Font = Enum.Font.GothamBold,
+		TextSize = 11,
+		TextColor3 = THEME.Text,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextTruncate = Enum.TextTruncate.AtEnd,
+	}, b)
+
+	local pill = make("Frame", {
+		AnchorPoint = Vector2.new(1, 0.5),
+		Position = UDim2.new(1, -8, 0.5, 0),
+		Size = UDim2.fromOffset(34, 16),
+		BackgroundColor3 = THEME.PillOff,
+	}, b)
+	corner(pill, 8)
+	local knob = make("Frame", {
+		AnchorPoint = Vector2.new(0, 0.5),
+		Position = UDim2.new(0, 2, 0.5, 0),
+		Size = UDim2.fromOffset(12, 12),
+		BackgroundColor3 = Color3.new(1, 1, 1),
+	}, pill)
+	corner(knob, 6)
+
+	local function refresh()
+		local on = CFG[key]
+		tw(b, 0.18, { BackgroundColor3 = on and THEME.CardOn or THEME.Card })
+		tw(st, 0.18, { Color = on and THEME.Accent or THEME.Off, Transparency = on and 0 or 0.5 })
+		tw(pill, 0.18, { BackgroundColor3 = on and THEME.Accent or THEME.PillOff })
+		tw(knob, 0.18, { Position = UDim2.new(0, on and 20 or 2, 0.5, 0) })
+	end
+
+	b.MouseButton1Click:Connect(function()
+		CFG[key] = not CFG[key]
+		refresh()
+		apply(CFG[key])
+		save()
+	end)
+
+	controls[key] = { Refresh = refresh, Apply = function() apply(CFG[key]) end }
+	refresh()
+end
+
+-- bộ chỉnh số: nhấn 1 lần = 1 bước, giữ nút = chạy lặp
+local function addStepper(page, text, key, min, max, step, fmt, apply)
+	fmt = fmt or tostring
+	CFG[key] = math.clamp(CFG[key], min, max)
+
+	local f = make("Frame", {
+		Size = UDim2.new(1, 0, 0, 28),
+		BackgroundColor3 = THEME.Panel,
+		LayoutOrder = nxt(page),
+	}, page)
+	corner(f, 8)
+	make("TextLabel", {
+		BackgroundTransparency = 1,
+		Position = UDim2.fromOffset(10, 0),
+		Size = UDim2.new(1, -124, 1, 0),
+		Text = text,
+		Font = Enum.Font.GothamMedium,
+		TextSize = 10,
+		TextColor3 = THEME.Sub,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextTruncate = Enum.TextTruncate.AtEnd,
+	}, f)
+
+	local function stepBtn(txt, xOff)
+		local b = make("TextButton", {
+			AnchorPoint = Vector2.new(1, 0.5),
+			Position = UDim2.new(1, xOff, 0.5, 0),
+			Size = UDim2.fromOffset(26, 18),
+			BackgroundColor3 = Color3.fromRGB(46, 50, 66),
+			Text = txt,
+			Font = Enum.Font.GothamBold,
+			TextSize = 12,
+			TextColor3 = Color3.new(1, 1, 1),
+		}, f)
+		corner(b, 5)
+		return b
+	end
+
+	local plus = stepBtn("+", -6)
+	local valBox = make("TextBox", {
+		AnchorPoint = Vector2.new(1, 0.5),
+		Position = UDim2.new(1, -34, 0.5, 0),
+		Size = UDim2.fromOffset(52, 18),
+		BackgroundColor3 = Color3.fromRGB(30, 33, 46),
+		Font = Enum.Font.GothamBlack,
+		TextSize = 12,
+		TextColor3 = THEME.Accent,
+		ClearTextOnFocus = false,
+		PlaceholderText = tostring(min),
+		TextEditable = true,
+	}, f)
+	corner(valBox, 5)
+	local minus = stepBtn("-", -88)
+
+	local function refresh() valBox.Text = fmt(CFG[key]) end
+
+	local function setV(v)
+		v = math.clamp(math.floor(v + 0.5), min, max)
+		if v == CFG[key] then refresh() return end
+		CFG[key] = v
+		refresh()
+		apply(v)
+		save()
+	end
+
+	-- gõ số trực tiếp: bấm vào ô, gõ số, nhấn Enter hoặc bấm ra ngoài để áp dụng
+	valBox.Focused:Connect(function()
+		valBox.Text = tostring(CFG[key])  -- bỏ hậu tố (vd "m") để gõ số thuần cho dễ
+	end)
+	valBox.FocusLost:Connect(function()
+		local n = tonumber((valBox.Text:gsub("[^%-%d%.]", "")))
+		if n then
+			setV(n)
+		else
+			refresh()
+		end
+	end)
+
+	local function holdRepeat(btn, delta)
+		local token = 0
+		local function isPress(i)
+			return i.UserInputType == Enum.UserInputType.MouseButton1
+				or i.UserInputType == Enum.UserInputType.Touch
+		end
+		btn.InputBegan:Connect(function(i)
+			if not isPress(i) then return end
+			token += 1
+			local my = token
+			setV(CFG[key] + delta)
+			task.delay(0.4, function()
+				while alive and token == my do
+					setV(CFG[key] + delta)
+					task.wait(0.07)
+				end
+			end)
+		end)
+		btn.InputEnded:Connect(function(i)
+			if isPress(i) then token += 1 end
+		end)
+	end
+	holdRepeat(plus, step)
+	holdRepeat(minus, -step)
+
+	controls[key] = { Refresh = refresh, Apply = function() apply(CFG[key]) end }
+	refresh()
+end
+
+local function addButton(page, text, color, textColor, onClick)
+	local b = make("TextButton", {
+		Size = UDim2.new(1, 0, 0, 30),
+		BackgroundColor3 = color,
+		Text = text,
+		Font = Enum.Font.GothamBold,
+		TextSize = 11,
+		TextColor3 = textColor,
+		LayoutOrder = nxt(page),
+	}, page)
+	corner(b, 8)
+	b.MouseButton1Click:Connect(onClick)
+	return b
+end
+
+----------------------------------------------------------------
+-- TAB: ESP
+----------------------------------------------------------------
+local pEsp = addTab(1, "ESP", "👁 ESP")
+
+local function espApply(kind, label)
+	return function(on)
+		ESP.Refresh()
+		say(label .. " " .. onoff(on))
+		if on and not booting then
+			task.delay(1.2, function()
+				if not alive or not CFG["esp" .. kind] then return end
+				local n = ESP.CountKind(kind)
+				setStatus(n > 0
+					and (label .. " ON • " .. n .. " mục tiêu")
+					or (label .. ": chưa thấy mục tiêu nào"))
+			end)
+		end
+	end
+end
+
+local function itemApply(kind, key, label)
+	return function(on)
+		ITEM.Refresh()
+		say(label .. " " .. onoff(on))
+		if on and not booting then
+			task.delay(1.5, function()
+				if not alive or not CFG[key] then return end
+				local n = ITEM.CountKind(kind)
+				setStatus(n > 0
+					and (label .. " ON • " .. n .. " vật phẩm")
+					or (label .. ": chưa thấy vật phẩm nào"))
+			end)
+		end
+	end
+end
+
+addToggle(pEsp, "🤖", "ESP NPC", "espNPC", espApply("NPC", "ESP NPC"))
+addToggle(pEsp, "👁", "ESP Player", "espPlayer", espApply("Player", "ESP Player"))
+addToggle(pEsp, "🛡", "Team Check (ẩn đồng đội)", "teamCheck", function(on)
+	say("Team Check " .. onoff(on))
+end)
+addToggle(pEsp, "🎒", "ESP Item (đồ rơi)", "espItem", itemApply("Tool", "espItem", "ESP Item"))
+addToggle(pEsp, "✋", "ESP Prompt (đồ nhặt/rương)", "espPrompt", itemApply("Prompt", "espPrompt", "ESP Prompt"))
+addStepper(pEsp, "Khoảng cách tối đa", "espDist", 100, 2000, 50, function(v) return v .. "m" end, function() end)
+addStepper(pEsp, "Số mục tiêu tối đa", "espMax", 5, 30, 5, tostring, function() end)
+addStepper(pEsp, "Số vật phẩm tối đa", "itemMax", 10, 100, 10, tostring, function() end)
+note(pEsp, "Roblox chỉ vẽ tối đa ~31 Highlight cùng lúc nên số mục tiêu bị giới hạn ở 30. Item chỉ hiện nhãn tên, không dùng Highlight.")
+
+section(pEsp, "TP VẬT PHẨM GẦN NHẤT")
+note(pEsp, "Cần bật ESP Item hoặc ESP Prompt ở trên để có dữ liệu. Danh sách tự cập nhật, chỉ hiện tối đa 12 vật phẩm gần nhất.")
+
+local itemTpList = make("Frame", {
+	Size = UDim2.new(1, 0, 0, 0),
+	AutomaticSize = Enum.AutomaticSize.Y,
+	BackgroundTransparency = 1,
+	LayoutOrder = nxt(pEsp),
+}, pEsp)
+make("UIListLayout", {
+	Padding = UDim.new(0, 5),
+	SortOrder = Enum.SortOrder.LayoutOrder,
+}, itemTpList)
+
+local ITEM_TP_MAX = 12
+local itemTpRows = {}  -- danh sách Frame đang hiển thị, dọn mỗi lần làm mới
+
+local function clearItemTpRows()
+	for _, row in ipairs(itemTpRows) do row:Destroy() end
+	table.clear(itemTpRows)
+end
+
+local function refreshItemTpList()
+	if not pEsp.Visible then return end  -- không đứng ở tab ESP thì khỏi vẽ, đỡ tốn
+	clearItemTpRows()
+
+	if not (CFG.espItem or CFG.espPrompt) then
+		local lbl = make("TextLabel", {
+			BackgroundTransparency = 1,
+			Size = UDim2.new(1, 0, 0, 24),
+			Text = "Chưa bật ESP Item/Prompt ở trên",
+			Font = Enum.Font.GothamMedium,
+			TextSize = 10,
+			TextColor3 = THEME.Sub,
+			LayoutOrder = 1,
+		}, itemTpList)
+		table.insert(itemTpRows, lbl)
+		return
+	end
+
+	local list = {}
+	for inst, data in pairs(ITEM.Tracked) do
+		if data.Part and data.Part.Parent then
+			list[#list + 1] = data
+		end
+	end
+	table.sort(list, function(a, b) return (a.Dist or 0) < (b.Dist or 0) end)
+
+	if #list == 0 then
+		local lbl = make("TextLabel", {
+			BackgroundTransparency = 1,
+			Size = UDim2.new(1, 0, 0, 24),
+			Text = "Chưa thấy vật phẩm nào gần đây",
+			Font = Enum.Font.GothamMedium,
+			TextSize = 10,
+			TextColor3 = THEME.Sub,
+			LayoutOrder = 1,
+		}, itemTpList)
+		table.insert(itemTpRows, lbl)
+		return
+	end
+
+	for i, data in ipairs(list) do
+		if i > ITEM_TP_MAX then break end
+
+		local nm = itemName(data.Inst, data.Kind)
+		local d = math.floor((data.Dist or 0) + 0.5)
+
+		local btn = make("TextButton", {
+			Text = "",
+			AutoButtonColor = false,
+			Size = UDim2.new(1, 0, 0, 30),
+			BackgroundColor3 = THEME.Card,
+			LayoutOrder = i,
+		}, itemTpList)
+		corner(btn, 8)
+		local st = make("UIStroke", {
+			Color = THEME.Off,
+			Thickness = 1.2,
+			Transparency = 0.5,
+			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+		}, btn)
+
+		make("TextLabel", {
+			BackgroundTransparency = 1,
+			Position = UDim2.fromOffset(10, 0),
+			Size = UDim2.new(1, -90, 1, 0),
+			Text = (data.Kind == "Tool" and "🎒 " or "✋ ") .. nm .. " • " .. d .. "m",
+			Font = Enum.Font.GothamBold,
+			TextSize = 10,
+			TextColor3 = THEME.Text,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			TextTruncate = Enum.TextTruncate.AtEnd,
+		}, btn)
+
+		local go = make("TextLabel", {
+			AnchorPoint = Vector2.new(1, 0.5),
+			Position = UDim2.new(1, -8, 0.5, 0),
+			Size = UDim2.fromOffset(50, 20),
+			BackgroundColor3 = THEME.Accent,
+			Text = "TP",
+			Font = Enum.Font.GothamBold,
+			TextSize = 10,
+			TextColor3 = Color3.fromRGB(5, 20, 12),
+		}, btn)
+		corner(go, 6)
+
+		local part = data.Part
+		btn.MouseButton1Click:Connect(function()
+			if not part.Parent then
+				say("Vật phẩm đã biến mất")
+				return
+			end
+			tw(st, 0.15, { Color = THEME.Accent, Transparency = 0 })
+			task.delay(0.2, function()
+				if alive then tw(st, 0.3, { Color = THEME.Off, Transparency = 0.5 }) end
+			end)
+			safeWalkToPos(part.Position, nm)
+		end)
+
+		table.insert(itemTpRows, btn)
+	end
+end
+
+-- tự làm mới danh sách định kỳ, không cần bấm refresh tay
+task.spawn(function()
+	while alive do
+		task.wait(1.5)
+		pcall(refreshItemTpList)
+	end
+end)
+
+----------------------------------------------------------------
+-- TAB: MOVE
+----------------------------------------------------------------
+local pMove = addTab(2, "MOVE", "⚡ MOVE")
+
+-- công tắc cho tính năng ghi đè Humanoid, có báo lỗi khi chưa có nhân vật
+local function humApply(label, F)
+	return function(on)
+		F.Set(on)
+		if booting then return end
+		if not getHum() then
+			say(label .. (on and ": chưa có nhân vật, sẽ áp dụng khi xuất hiện" or " OFF"))
+			return
+		end
+		say(label .. " " .. onoff(on))
+		if on then F.Verify(label) end
+	end
+end
+
+addToggle(pMove, "⚡", "Speed (chạy nhanh)", "speedOn", humApply("Speed", SpeedF))
+addStepper(pMove, "Tốc độ chạy", "speedVal", 16, 150, 4, tostring, function() SpeedF.Update() end)
+
+addToggle(pMove, "🦘", "Jump (nhảy cao)", "jumpOn", humApply("Jump", JumpF))
+addStepper(pMove, "Sức nhảy", "jumpVal", 50, 250, 10, tostring, function() JumpF.Update() end)
+
+addToggle(pMove, "👻", "Noclip (xuyên tường)", "noclip", function(on)
+	NC.Set(on)
+	say("Noclip " .. onoff(on))
+end)
+
+addToggle(pMove, "♾", "Infinite Jump", "infJump", function(on)
+	IJ.Set(on)
+	say("Infinite Jump " .. onoff(on))
+end)
+
+addToggle(pMove, "🕊", "Fly (bay)", "fly", function(on)
+	if on then
+		if flyStart() then
+			say("Fly ON • Space lên, Ctrl xuống")
+		elseif not booting then
+			say("Fly: chưa có nhân vật, sẽ bay khi xuất hiện")
+		end
+	else
+		flyStop(true)
+		say("Fly OFF")
+	end
+end)
+addStepper(pMove, "Tốc độ bay", "flySpeed", 20, 200, 10, tostring, function() end)
+note(pMove, "Fly: PC dùng Space (lên) / Ctrl (xuống). Điện thoại: bay theo hướng camera, nhìn lên/xuống để đổi độ cao.")
+
+addToggle(pMove, "🏃", "Auto né quái (giữ khoảng cách)", "autoDodge", function(on)
+	DODGE.Refresh()
+	say("Auto né quái " .. onoff(on))
+end)
+addStepper(pMove, "Bán kính né (stud)", "dodgeRadius", 8, 60, 2, function(v) return v .. "st" end, function() end)
+note(pMove, "Tự đẩy nhân vật ra xa khi quái/NPC lọt vào bán kính trên, giúp quái khó áp sát để đánh trúng. Tăng bán kính = né sớm hơn, xa hơn (nhưng dễ bị vướng địa hình hẹp hơn). Không né người chơi khác. Đây KHÔNG phải tàng hình — quái tầm xa/AOE vẫn trúng bình thường, và nếu game kiểm tra tốc độ di chuyển bất thường có thể bị server chặn, tắt đi nếu thấy bị văng lạ.")
+
+----------------------------------------------------------------
+-- TAB: INFO
+----------------------------------------------------------------
+local pInfo = addTab(3, "INFO", "⭐ INFO")
+
+section(pInfo, "GAME ĐANG CHƠI")
+local rGame = row(pInfo, "Tên game", "Đang tải...")
+row(pInfo, "Place ID", tostring(game.PlaceId))
+local rPlayers = row(pInfo, "Người chơi", "-")
+local rPing = row(pInfo, "Ping", "-")
+local rFps = row(pInfo, "FPS", "-")
+row(pInfo, "Tài khoản", p.DisplayName .. " (@" .. p.Name .. ")")
+
+task.spawn(function()
+	local ok, res = pcall(function()
+		return MarketplaceService:GetProductInfo(game.PlaceId)
+	end)
+	rGame.Text = (ok and res and res.Name) or "Không lấy được tên"
+end)
+
+local frames, fps = 0, 0
+local fpsConn
+
+local function startFps()
+	if fpsConn then return end
+	frames, fps = 0, 0
+	fpsConn = RunService.Heartbeat:Connect(function() frames += 1 end)
+end
+
+local function stopFps()
+	if fpsConn then
+		fpsConn:Disconnect()
+		fpsConn = nil
+	end
+end
+
+local function getPing()
+	local ok, v = pcall(function()
+		return math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue())
+	end)
+	return ok and (v .. " ms") or "-"
+end
+
+refreshInfo = function()
+	rPlayers.Text = #Players:GetPlayers() .. "/" .. Players.MaxPlayers
+	rPing.Text = getPing()
+	rFps.Text = fps > 0 and tostring(fps) or "..."
+end
+
+local minimized = false
+
+task.spawn(function()
+	while alive and task.wait(1) do
+		if pInfo.Visible and hub.Visible and not minimized then
+			startFps()
+			fps = frames
+			frames = 0
+			refreshInfo()
+		else
+			stopFps()  -- không xem Info thì không đếm gì cả
+		end
+	end
+end)
+
+-- ===== Mạng xã hội =====
+section(pInfo, "LIÊN HỆ / MẠNG XÃ HỘI")
+for _, s in ipairs(INFO.Socials) do
+	local f = make("TextButton", {
+		Text = "",
+		AutoButtonColor = false,
+		Size = UDim2.new(1, 0, 0, 44),
+		BackgroundColor3 = THEME.Card,
+		LayoutOrder = nxt(pInfo),
+	}, pInfo)
+	corner(f, 10)
+	make("UIStroke", {
+		Color = THEME.Off,
+		Thickness = 1,
+		Transparency = 0.5,
+		ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+	}, f)
+
+	make("TextLabel", {
+		BackgroundTransparency = 1,
+		Position = UDim2.fromOffset(6, 0),
+		Size = UDim2.fromOffset(32, 44),
+		Text = s.Icon,
+		TextSize = 20,
+		TextColor3 = THEME.Text,
+	}, f)
+
+	make("TextLabel", {
+		BackgroundTransparency = 1,
+		Position = UDim2.fromOffset(44, 5),
+		Size = UDim2.new(1, -118, 0, 16),
+		Text = s.Name,
+		Font = Enum.Font.GothamBold,
+		TextSize = 12,
+		TextColor3 = THEME.Text,
+		TextXAlignment = Enum.TextXAlignment.Left,
+	}, f)
+
+	make("TextLabel", {
+		BackgroundTransparency = 1,
+		Position = UDim2.fromOffset(44, 22),
+		Size = UDim2.new(1, -118, 0, 14),
+		Text = s.Link,
+		Font = Enum.Font.GothamMedium,
+		TextSize = 10,
+		TextColor3 = THEME.Sub,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextTruncate = Enum.TextTruncate.AtEnd,
+	}, f)
+
+	local copy = make("TextButton", {
+		Position = UDim2.new(1, -66, 0.5, -13),
+		Size = UDim2.fromOffset(58, 26),
+		BackgroundColor3 = THEME.Accent,
+		Text = "MỞ",
+		Font = Enum.Font.GothamBold,
+		TextSize = 11,
+		TextColor3 = Color3.fromRGB(5, 20, 12),
+	}, f)
+	corner(copy, 8)
+
+	local function openLink()
+		-- luôn copy link để dự phòng (Roblox hay chặn mở web từ script)
+		local copied = type(setclipboard) == "function" and pcall(setclipboard, s.Link)
+		local opened = pcall(function()
+			GuiService:OpenBrowserWindow(s.Link)
+		end)
+
+		if opened then
+			setStatus("Đang mở " .. s.Name .. (copied and " (đã copy link dự phòng)" or "..."))
+		elseif copied then
+			setStatus("Đã copy link " .. s.Name .. ", dán vào trình duyệt")
+		else
+			setStatus(s.Name .. ": " .. s.Link)
+		end
+
+		copy.Text = "OK"
+		task.delay(1.5, function()
+			if alive then copy.Text = "MỞ" end
+		end)
+	end
+
+	copy.MouseButton1Click:Connect(openLink)
+	f.MouseButton1Click:Connect(openLink)
+end
+
+-- ===== Tác giả =====
+section(pInfo, "TÁC GIẢ")
+row(pInfo, "Hub", INFO.Author .. " • " .. INFO.Version)
+
+----------------------------------------------------------------
+-- TAB: SET (cài đặt)
+----------------------------------------------------------------
+local pSet = addTab(4, "SET", "⚙ SET")
+
+section(pSet, "TỐI ƯU HIỆU NĂNG")
+addToggle(pSet, "🚀", "Fix Lag (tăng FPS)", "lagOn", function(on)
+	if on then
+		LAG.Apply()
+		say("Fix Lag ON • đang xử lý nền...")
+	else
+		LAG.Restore()
+		say("Fix Lag OFF • đã khôi phục")
+	end
+end)
+addStepper(pSet, "Mức giảm đồ họa", "lagLevel", 1, 2, 1, function(v)
+	return v == 1 and "Nhẹ" or "Mạnh"
+end, function()
+	if booting or not CFG.lagOn then return end
+	LAG.Apply()
+	say("Fix Lag: đổi mức, đang xử lý nền...")
+end)
+note(pSet, "Nhẹ: tắt hiệu ứng, bóng, làm mượt nước. Mạnh: thêm vật liệu phẳng, bỏ hình dán (game trông đơn giản hơn). Chỉ giúp lag FPS, không giúp lag mạng (ping).")
+
+section(pSet, "HIỂN THỊ")
+addToggle(pSet, "💡", "Fullbright (làm sáng toàn map)", "fullbright", function(on)
+	if on then
+		FULLBRIGHT.Apply()
+		say("Fullbright ON")
+	else
+		FULLBRIGHT.Restore()
+		say("Fullbright OFF • đã khôi phục ánh sáng")
+	end
+end)
+note(pSet, "Làm sáng map, tắt sương mù/bóng tối — hữu ích cho game kinh dị, hầm tối, dungeon. Có thể làm mất hiệu ứng ánh sáng game cố tình tạo (ví dụ jumpscare dark room), tắt đi nếu không cần nữa.")
+
+section(pSet, "NGÔN NGỮ")
+addToggle(pSet, "🌐", "Tự dịch chat sang Tiếng Việt", "autoTranslate", function(on)
+	setupAutoTranslate(on)
+	say("Tự dịch chat " .. onoff(on))
+	if on and not booting then
+		-- kiểm tra thử ngay xem API dịch có gọi được không, để biết lỗi do mạng/API
+		-- hay do game dùng khung chat tự chế (không áp dụng được bản dịch).
+		-- Chỉ chạy khi người dùng tự bấm (not booting) — tránh hiện thông báo
+		-- không đúng lúc nếu trạng thái bật được tải lại từ lần trước lúc hub chưa mở xong.
+		task.spawn(function()
+			local test = translateToVi("hello")
+			if not alive or not CFG.autoTranslate then return end
+			if test then
+				setStatus("Dịch thử OK: hello → " .. test .. " (nếu chat trong game không đổi, do game dùng khung chat riêng)")
+			else
+				setStatus("Dịch lỗi: không gọi được API (kiểm tra mạng hoặc executor có hỗ trợ request không)")
+			end
+		end)
+	end
+end)
+note(pSet, "Dịch tin nhắn chat người khác gửi, hiện thêm 1 dòng tiếng Việt bên dưới câu gốc. Cần có mạng. Chỉ hoạt động với game dùng hệ chat mới (TextChatService) MẶC ĐỊNH của Roblox — nếu game tự vẽ khung chat riêng (giao diện lạ, không phải khung chat gốc) thì không can thiệp được, vì script không có quyền đọc/sửa UI tự chế đó.")
+
+section(pSet, "CÀI ĐẶT")
+row(pSet, "Lưu cài đặt", canSave and "Tự động" or "Không hỗ trợ")
+row(pSet, "Phím tắt", TOGGLE_KEY.Name)
+
+local function resetAll()
+	for k, v in pairs(DEFAULTS) do CFG[k] = v end
+	for _, c in pairs(controls) do
+		c.Apply()
+		c.Refresh()
+	end
+	applyZoom(DEFAULTS.zoom)
+	save()
+	setStatus("Đã đặt lại mặc định")
+end
+
+addButton(pSet, "💾  LƯU NGAY", THEME.Accent2, Color3.fromRGB(4, 16, 26), function()
+	if writeNow() then
+		setStatus("Đã lưu cài đặt")
+	else
+		setStatus("Executor không hỗ trợ lưu file")
+	end
+end)
+addButton(pSet, "↺  ĐẶT LẠI MẶC ĐỊNH", Color3.fromRGB(46, 50, 66), Color3.new(1, 1, 1), resetAll)
+
+local unloadBtn = addButton(pSet, "⏻  GỠ HUB (UNLOAD)", THEME.Danger, Color3.new(1, 1, 1), function() end)
+
+----------------------------------------------------------------
+-- MỞ / ĐÓNG / THU NHỎ / GỠ HUB
+----------------------------------------------------------------
+local hubOpen = false
+
+local function showHub(state)
+	hubOpen = state
+	if state then
+		hub.Visible = true
+		hubScale.Scale = zoom * 0.85
+		TweenService:Create(hubScale, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = zoom }):Play()
+	else
+		local t = TweenService:Create(hubScale, TweenInfo.new(0.15), { Scale = zoom * 0.85 })
+		t:Play()
+		t.Completed:Once(function()
+			if not hubOpen then hub.Visible = false end
+		end)
+	end
+end
+
+toggleHub = function() showHub(not hubOpen) end
+
+local function setMinimized(state)
+	minimized = state
+	body.Visible = not state
+	minBtn.Text = state and "+" or "_"
+	tw(hub, 0.25, { Size = UDim2.fromOffset(W, state and H_MIN or H_FULL) })
+end
+
+minBtn.MouseButton1Click:Connect(function() setMinimized(not minimized) end)
+closeBtn.MouseButton1Click:Connect(function() showHub(false) end)
+
+-- phím tắt trên PC
+track(UIS.InputBegan:Connect(function(input, gameProcessed)
+	if gameProcessed then return end
+	if input.KeyCode == TOGGLE_KEY then toggleHub() end
+end))
+
+-- gỡ sạch toàn bộ hub: lưu cài đặt, trả mọi thứ về như cũ, xoá GUI
+local function unload()
+	if not alive then return end
+	writeNow()  -- lưu trạng thái hiện tại trước khi tắt các tính năng
+	alive = false
+	SpeedF.Stop()
+	JumpF.Stop()
+	NC.Set(false)
+	IJ.Set(false)
+	flyStop(true)
+	LAG.Restore()
+	setupAutoTranslate(false)
+	FULLBRIGHT.Restore()
+	DODGE.Gen += 1
+	dodgeClear()
+	ESP.Gen += 1
+	clearAll()
+	ITEM.Gen += 1
+	clearItems()
+	stopFps()
+	for _, c in ipairs(conns) do pcall(function() c:Disconnect() end) end
+	table.clear(conns)
+	gui:Destroy()
+	_G.VuongHubUnload = nil
+end
+
+_G.VuongHubUnload = unload
+unloadBtn.MouseButton1Click:Connect(unload)
+
+----------------------------------------------------------------
+-- KHỞI ĐỘNG
+----------------------------------------------------------------
+applyZoom(CFG.zoom)
+for _, c in pairs(controls) do c.Refresh() end
+for _, c in pairs(controls) do c.Apply() end  -- áp dụng cài đặt đã lưu
+
+track(p.CharacterAdded:Connect(onCharacter))
+if p.Character then task.spawn(onCharacter, p.Character) end
+
+selectTab("ESP")
+booting = false
+showHub(true)
+setStatus(canSave and "Ready • đã tải cài đặt" or "Ready")
