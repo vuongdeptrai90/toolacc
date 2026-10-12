@@ -2018,7 +2018,7 @@ addToggle(pEsp, "🛡", "Team Check (ẩn đồng đội)", "teamCheck", functio
 end)
 addToggle(pEsp, "🎒", "ESP Item (đồ rơi)", "espItem", itemApply("Tool", "espItem", "ESP Item"))
 addToggle(pEsp, "✋", "ESP Prompt (đồ nhặt/rương)", "espPrompt", itemApply("Prompt", "espPrompt", "ESP Prompt"))
-addStepper(pEsp, "Khoảng cách tối đa", "espDist", 100, 2000, 50, function(v) return v .. "m" end, function() end)
+addStepper(pEsp, "Khoảng cách tối đa", "espDist", 100, 20000000, 50, function(v) return v .. "m" end, function() end)
 addStepper(pEsp, "Số mục tiêu tối đa", "espMax", 5, 30, 5, tostring, function() end)
 addStepper(pEsp, "Số vật phẩm tối đa", "itemMax", 10, 100, 10, tostring, function() end)
 note(pEsp, "Roblox chỉ vẽ tối đa ~31 Highlight cùng lúc nên số mục tiêu bị giới hạn ở 30. Item chỉ hiện nhãn tên, không dùng Highlight.")
@@ -2175,10 +2175,10 @@ local function humApply(label, F)
 end
 
 addToggle(pMove, "⚡", "Speed (chạy nhanh)", "speedOn", humApply("Speed", SpeedF))
-addStepper(pMove, "Tốc độ chạy", "speedVal", 16, 150, 4, tostring, function() SpeedF.Update() end)
+addStepper(pMove, "Tốc độ chạy", "speedVal", 16, 1500, 4, tostring, function() SpeedF.Update() end)
 
 addToggle(pMove, "🦘", "Jump (nhảy cao)", "jumpOn", humApply("Jump", JumpF))
-addStepper(pMove, "Sức nhảy", "jumpVal", 50, 250, 10, tostring, function() JumpF.Update() end)
+addStepper(pMove, "Sức nhảy", "jumpVal", 50, 2500, 10, tostring, function() JumpF.Update() end)
 
 addToggle(pMove, "👻", "Noclip (xuyên tường)", "noclip", function(on)
 	NC.Set(on)
