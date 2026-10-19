@@ -1,0 +1,1222 @@
+--[[
+
+    BLOX FRUITS AUTO FARM - ADVANCED EDITION
+
+    UI: Orion Library
+
+    Tác giả: [A]
+
+    Lưu ý: Script này dùng cho mục đích học tập / cá nhân.
+
+    Hãy dùng trong private server để tránh bị report.
+
+--]]
+
+--============================================================
+
+-- [1] LOAD UI LIBRARY (Orion)
+
+--============================================================
+
+local OrionLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/shlexware/Orion/main/source"))()
+
+--============================================================
+
+-- [2] SERVICES & BIẾN TOÀN CỤC
+
+--============================================================
+
+local Players           = game:GetService("Players")
+
+local RunService        = game:GetService("RunService")
+
+local TweenService      = game:GetService("TweenService")
+
+local VirtualUser       = game:GetService("VirtualUser")
+
+local Lighting          = game:GetService("Lighting")
+
+local Workspace         = game:GetService("Workspace")
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local LP = Players.LocalPlayer
+
+local Camera = Workspace.CurrentCamera
+
+-- Bảng lưu trạng thái toggle của các tính năng
+
+local Flags = {
+
+    AutoFarmLevel   = false,
+
+    AutoFarmBone    = false,
+
+    AutoFarmBoss    = false,
+
+    AutoFarmAllBoss = false,
+
+    AutoStats       = false,
+
+    AutoBuyFruit    = false,
+
+    AutoStoreFruit  = false,
+
+    ESPFruit        = false,
+
+    AutoBringFruit  = false,
+
+    AutoMastery     = false,
+
+    SafeMode        = false,
+
+    AntiAFK         = true,
+
+    AutoSeaEvent    = false,
+
+    FastAttack      = false,
+
+}
+
+local Config = {
+
+    FarmDistance  = 20,
+
+    AttackSpeed   = 0.15,
+
+    WeaponType    = "Melee",   -- Melee / Sword / BloxFruit / Gun
+
+    StatMode      = "Balanced",
+
+    StatPoints    = { Melee = 1, Defense = 1, Sword = 1, Gun = 0, BloxFruit = 0 },
+
+    SafeHP        = 30,        -- % máu để kích hoạt Safe Mode
+
+    Sea           = 1,
+
+    SelectedIsland = nil,
+
+}
+
+--============================================================
+
+-- [3] HÀM TIỆN ÍCH (UTILITY)
+
+--============================================================
+
+-- Safe call - tránh script bị dừng khi có lỗi
+
+local function safeCall(fn, ...)
+
+    local ok, err = pcall(fn, ...)
+
+    if not ok then warn("[SafeCall] " .. tostring(err)) end
+
+    return ok
+
+end
+
+-- Lấy Character & Humanoid & RootPart an toàn
+
+local function getChar()
+
+    local char = LP.Character
+
+    if not char then return nil, nil, nil end
+
+    local hum = char:FindFirstChildOfClass("Humanoid")
+
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+
+    return char, hum, hrp
+
+end
+
+-- Kiểm tra nhân vật còn sống không
+
+local function isAlive()
+
+    local _, hum = getChar()
+
+    return hum and hum.Health > 0
+
+end
+
+-- Teleport mượt bằng TweenService
+
+local function tweenTo(position, speed)
+
+    local _, _, hrp = getChar()
+
+    if not hrp then return end
+
+    speed = speed or 200
+
+    local distance = (hrp.Position - position).Magnitude
+
+    local time = distance / speed
+
+    local tween = TweenService:Create(
+
+        hrp,
+
+        TweenInfo.new(time, Enum.EasingStyle.Linear),
+
+        { CFrame = CFrame.new(position) }
+
+    )
+
+    tween:Play()
+
+    return tween
+
+end
+
+-- Teleport tức thời (dùng cho Snipe Fruit / Island)
+
+local function teleportInstant(position)
+
+    local _, _, hrp = getChar()
+
+    if not hrp then return end
+
+    hrp.CFrame = CFrame.new(position + Vector3.new(0, 5, 0))
+
+end
+
+-- Trang bị vũ khí theo loại
+
+local function equipWeapon(wType)
+
+    local char = LP.Character
+
+    if not char then return end
+
+    local backpack = LP:FindFirstChild("Backpack")
+
+    if not backpack then return end
+
+    local keyWords = {
+
+        Melee     = { "Melee", "Fighting", "Combat" },
+
+        Sword     = { "Sword", "Saber", "Blade", "Katana" },
+
+        Gun       = { "Gun", "Pistol", "Rifle", "Bow" },
+
+        BloxFruit = { "Fruit", "FruitBlox" },
+
+    }
+
+    local keys = keyWords[wType] or { wType }
+
+    for _, tool in pairs(backpack:GetChildren()) do
+
+        if tool:IsA("Tool") then
+
+            for _, keyword in ipairs(keys) do
+
+                if tool.Name:lower():find(keyword:lower()) then
+
+                    safeCall(function()
+
+                        char.Humanoid:EquipTool(tool)
+
+                    end)
+
+                    return
+
+                end
+
+            end
+
+        end
+
+    end
+
+end
+
+-- Lấy trái ác quỷ đang cầm
+
+local function getCurrentFruit()
+
+    local char = LP.Character
+
+    if not char then return nil end
+
+    for _, tool in pairs(char:GetChildren()) do
+
+        if tool:IsA("Tool") and tool:FindFirstChild("Fruit") then
+
+            return tool
+
+        end
+
+    end
+
+    return nil
+
+end
+
+-- Đánh quái (sử dụng tool hiện tại + remote combat)
+
+local function attack()
+
+    local tool = LP.Character and LP.Character:FindFirstChildOfClass("Tool")
+
+    if not tool then return end
+
+    -- Tool-based attack
+
+    if tool:FindFirstChild("Click") or tool:FindFirstChild("Activated") then
+
+        safeCall(function() tool:Activate() end)
+
+    end
+
+    -- Remote attack fallback
+
+    local combatRemote = ReplicatedStorage:FindFirstChild("Combat")
+
+    if combatRemote then
+
+        safeCall(function()
+
+            combatRemote:FireServer("Attack")
+
+        end)
+
+    end
+
+end
+
+-- Tìm quái gần nhất trong phạm vi
+
+local function findNearestEnemy(maxDist)
+
+    local _, _, hrp = getChar()
+
+    if not hrp then return nil end
+
+    local nearest, shortest = nil, maxDist or Config.FarmDistance
+
+    for _, obj in pairs(Workspace:GetDescendants()) do
+
+        if obj:IsA("Model") and obj:FindFirstChild("Humanoid") and obj ~= LP.Character then
+
+            local hum = obj:FindFirstChild("Humanoid")
+
+            local root = obj:FindFirstChild("HumanoidRootPart") or obj.PrimaryPart
+
+            if hum and root and hum.Health > 0 then
+
+                -- Bỏ qua người chơi khác
+
+                local isPlayer = Players:GetPlayerFromCharacter(obj)
+
+                if not isPlayer then
+
+                    local dist = (hrp.Position - root.Position).Magnitude
+
+                    if dist < shortest then
+
+                        shortest = dist
+
+                        nearest = obj
+
+                    end
+
+                end
+
+            end
+
+        end
+
+    end
+
+    return nearest, shortest
+
+end
+
+--============================================================
+
+-- [4] TẠO UI (Orion Library)
+
+--============================================================
+
+local Window = OrionLib:MakeWindow({
+
+    Name = "Blox Fruits Auto Farm | [A] Edition",
+
+    HidePremium = false,
+
+    SaveConfig = true,
+
+    ConfigFolder = "BF_AutoFarm_Config",
+
+    IntroEnabled = true,
+
+    IntroText = "Loading [A] Auto Farm...",
+
+    IntroIcon = "rbxassetid://4483345998",
+
+})
+
+--==================== TAB MAIN ====================
+
+local MainTab = Window:MakeTab({
+
+    Name = "Main Farm",
+
+    Icon = "rbxassetid://4483345998",
+
+    PremiumOnly = false,
+
+})
+
+local MainSection = MainTab:AddSection({ Name = "Auto Farm Chính" })
+
+MainTab:AddToggle({
+
+    Name = "Auto Farm Level",
+
+    Default = false,
+
+    Flag = "AutoFarmLevel",
+
+    Save = true,
+
+    Callback = function(v) Flags.AutoFarmLevel = v end,
+
+})
+
+MainTab:AddToggle({
+
+    Name = "Auto Farm Bone / Materials",
+
+    Default = false,
+
+    Flag = "AutoFarmBone",
+
+    Save = true,
+
+    Callback = function(v) Flags.AutoFarmBone = v end,
+
+})
+
+MainTab:AddToggle({
+
+    Name = "Auto Farm Boss",
+
+    Default = false,
+
+    Flag = "AutoFarmBoss",
+
+    Save = true,
+
+    Callback = function(v) Flags.AutoFarmBoss = v end,
+
+})
+
+MainTab:AddToggle({
+
+    Name = "Auto Farm ALL Bosses (nguy hiểm)",
+
+    Default = false,
+
+    Flag = "AutoFarmAllBoss",
+
+    Save = true,
+
+    Callback = function(v) Flags.AutoFarmAllBoss = v end,
+
+})
+
+MainTab:AddDropdown({
+
+    Name = "Chọn Vũ Khí Farm",
+
+    Default = "Melee",
+
+    Options = { "Melee", "Sword", "BloxFruit", "Gun" },
+
+    Flag = "WeaponSelect",
+
+    Save = true,
+
+    Callback = function(v) Config.WeaponType = v end,
+
+})
+
+MainTab:AddSlider({
+
+    Name = "Farm Distance",
+
+    Min = 5, Max = 100, Default = 20,
+
+    Color = Color3.fromRGB(255, 100, 100),
+
+    Increment = 1,
+
+    ValueName = "studs",
+
+    Flag = "FarmDistance",
+
+    Save = true,
+
+    Callback = function(v) Config.FarmDistance = v end,
+
+})
+
+MainTab:AddToggle({
+
+    Name = "Fast Attack (nhanh, có thể bị flag)",
+
+    Default = false,
+
+    Flag = "FastAttack",
+
+    Save = true,
+
+    Callback = function(v) Flags.FastAttack = v end,
+
+})
+
+MainTab:AddSlider({
+
+    Name = "Attack Delay (giây)",
+
+    Min = 0.05, Max = 1, Default = 0.15,
+
+    Color = Color3.fromRGB(200, 150, 255),
+
+    Increment = 0.01,
+
+    ValueName = "s",
+
+    Flag = "AttackSpeed",
+
+    Save = true,
+
+    Callback = function(v) Config.AttackSpeed = v end,
+
+})
+
+--==================== TAB STATS ====================
+
+local StatsTab = Window:MakeTab({
+
+    Name = "Stats",
+
+    Icon = "rbxassetid://4483345998",
+
+})
+
+local StatsSection = StatsTab:AddSection({ Name = "Auto Stats" })
+
+StatsTab:AddToggle({
+
+    Name = "Auto Stats",
+
+    Default = false,
+
+    Flag = "AutoStats",
+
+    Save = true,
+
+    Callback = function(v) Flags.AutoStats = v end,
+
+})
+
+StatsTab:AddDropdown({
+
+    Name = "Kiểu cộng điểm",
+
+    Default = "Balanced",
+
+    Options = { "Balanced", "Melee", "Defense", "Sword", "Gun", "BloxFruit" },
+
+    Flag = "StatMode",
+
+    Save = true,
+
+    Callback = function(v) Config.StatMode = v end,
+
+})
+
+StatsTab:AddSlider({
+
+    Name = "Tỷ lệ Melee",
+
+    Min = 0, Max = 10, Default = 1,
+
+    Color = Color3.fromRGB(100, 200, 255),
+
+    Increment = 1, ValueName = "x",
+
+    Flag = "StatMelee",
+
+    Save = true,
+
+    Callback = function(v) Config.StatPoints.Melee = v end,
+
+})
+
+StatsTab:AddSlider({
+
+    Name = "Tỷ lệ Defense",
+
+    Min = 0, Max = 10, Default = 1,
+
+    Color = Color3.fromRGB(100, 255, 150),
+
+    Increment = 1, ValueName = "x",
+
+    Flag = "StatDefense",
+
+    Save = true,
+
+    Callback = function(v) Config.StatPoints.Defense = v end,
+
+})
+
+StatsTab:AddSlider({
+
+    Name = "Tỷ lệ Sword",
+
+    Min = 0, Max = 10, Default = 1,
+
+    Color = Color3.fromRGB(255, 200, 100),
+
+    Increment = 1, ValueName = "x",
+
+    Flag = "StatSword",
+
+    Save = true,
+
+    Callback = function(v) Config.StatPoints.Sword = v end,
+
+})
+
+StatsTab:AddSlider({
+
+    Name = "Tỷ lệ Gun",
+
+    Min = 0, Max = 10, Default = 0,
+
+    Color = Color3.fromRGB(255, 100, 200),
+
+    Increment = 1, ValueName = "x",
+
+    Flag = "StatGun",
+
+    Save = true,
+
+    Callback = function(v) Config.StatPoints.Gun = v end,
+
+})
+
+StatsTab:AddSlider({
+
+    Name = "Tỷ lệ Blox Fruit",
+
+    Min = 0, Max = 10, Default = 0,
+
+    Color = Color3.fromRGB(200, 100, 255),
+
+    Increment = 1, ValueName = "x",
+
+    Flag = "StatFruit",
+
+    Save = true,
+
+    Callback = function(v) Config.StatPoints.BloxFruit = v end,
+
+})
+
+--==================== TAB FRUITS ====================
+
+local FruitTab = Window:MakeTab({
+
+    Name = "Fruits & Inventory",
+
+    Icon = "rbxassetid://4483345998",
+
+})
+
+local FruitSection = FruitTab:AddSection({ Name = "Trái Ác Quỷ" })
+
+FruitTab:AddToggle({
+
+    Name = "Auto Buy Fruit (khi đủ tiền)",
+
+    Default = false,
+
+    Flag = "AutoBuyFruit",
+
+    Save = true,
+
+    Callback = function(v) Flags.AutoBuyFruit = v end,
+
+})
+
+FruitTab:AddToggle({
+
+    Name = "Auto Store Fruit",
+
+    Default = false,
+
+    Flag = "AutoStoreFruit",
+
+    Save = true,
+
+    Callback = function(v) Flags.AutoStoreFruit = v end,
+
+})
+
+FruitTab:AddToggle({
+
+    Name = "ESP Fruit (hiện vị trí)",
+
+    Default = false,
+
+    Flag = "ESPFruit",
+
+    Save = true,
+
+    Callback = function(v) Flags.ESPFruit = v end,
+
+})
+
+FruitTab:AddToggle({
+
+    Name = "Auto Bring / Snipe Fruit",
+
+    Default = false,
+
+    Flag = "AutoBringFruit",
+
+    Save = true,
+
+    Callback = function(v) Flags.AutoBringFruit = v end,
+
+})
+
+--==================== TAB TELEPORT ====================
+
+local TPTab = Window:MakeTab({
+
+    Name = "Teleport & Sea",
+
+    Icon = "rbxassetid://4483345998",
+
+})
+
+local TPSection = TPTab:AddSection({ Name = "Đảo - Sea 1/2/3" })
+
+local Islands = {
+
+    -- Sea 1
+
+    "Windmill", "Marine Ford", "Sky Island", "Colosseum", "Prison",
+
+    -- Sea 2
+
+    "Kingdom of Rose", "Cursed Ship", "Ice Castle", "Forgotten Island",
+
+    -- Sea 3
+
+    "Port Town", "Hydra Island", "Great Tree", "Castle on the Sea", "Haunted Castle",
+
+}
+
+for _, islandName in ipairs(Islands) do
+
+    TPTab:AddButton({
+
+        Name = "TP: " .. islandName,
+
+        Callback = function()
+
+            -- Cần có bảng tọa độ riêng, ở đây dùng placeholder
+
+            -- Bạn có thể thay bằng CFrame thật của đảo
+
+            OrionLib:MakeNotification({
+
+                Name = "Teleport",
+
+                Content = "Đang tìm " .. islandName .. "... (cần thêm tọa độ)",
+
+                Time = 3,
+
+            })
+
+            -- Ví dụ: tweenTo(Vector3.new(X, Y, Z), 150)
+
+        end,
+
+    })
+
+end
+
+TPTab:AddSection({ Name = "Sea Events" })
+
+TPTab:AddToggle({
+
+    Name = "Auto Sea Events (Mirage, Kitsune, Factory...)",
+
+    Default = false,
+
+    Flag = "AutoSeaEvent",
+
+    Save = true,
+
+    Callback = function(v) Flags.AutoSeaEvent = v end,
+
+})
+
+TPTab:AddButton({
+
+    Name = "Auto Mirage Island",
+
+    Callback = function()
+
+        OrionLib:MakeNotification({ Name = "Mirage", Content = "Đang tìm Mirage...", Time = 3 })
+
+    end,
+
+})
+
+TPTab:AddButton({
+
+    Name = "Auto Kitsune Island",
+
+    Callback = function()
+
+        OrionLib:MakeNotification({ Name = "Kitsune", Content = "Đang tìm Kitsune...", Time = 3 })
+
+    end,
+
+})
+
+--==================== TAB MISC ====================
+
+local MiscTab = Window:MakeTab({
+
+    Name = "Combat & Misc",
+
+    Icon = "rbxassetid://4483345998",
+
+})
+
+MiscTab:AddToggle({
+
+    Name = "Auto Mastery (Sword / Fruit)",
+
+    Default = false,
+
+    Flag = "AutoMastery",
+
+    Save = true,
+
+    Callback = function(v) Flags.AutoMastery = v end,
+
+})
+
+MiscTab:AddToggle({
+
+    Name = "Safe Mode (ngừng farm khi HP thấp)",
+
+    Default = false,
+
+    Flag = "SafeMode",
+
+    Save = true,
+
+    Callback = function(v) Flags.SafeMode = v end,
+
+})
+
+MiscTab:AddSlider({
+
+    Name = "Ngưỡng HP Safe Mode (%)",
+
+    Min = 5, Max = 90, Default = 30,
+
+    Color = Color3.fromRGB(255, 80, 80),
+
+    Increment = 1, ValueName = "%",
+
+    Flag = "SafeHP",
+
+    Save = true,
+
+    Callback = function(v) Config.SafeHP = v end,
+
+})
+
+MiscTab:AddToggle({
+
+    Name = "Anti-AFK",
+
+    Default = true,
+
+    Flag = "AntiAFK",
+
+    Save = true,
+
+    Callback = function(v) Flags.AntiAFK = v end,
+
+})
+
+MiscTab:AddButton({
+
+    Name = "Server Hop",
+
+    Callback = function()
+
+        local ts = game:GetService("TeleportService")
+
+        local http = game:GetService("HttpService")
+
+        local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?limit=100"
+
+        local ok, res = pcall(function() return http:JSONDecode(game:HttpGet(url)) end)
+
+        if ok and res and res.data then
+
+            for _, srv in ipairs(res.data) do
+
+                if srv.playing < srv.maxPlayers and srv.id ~= game.JobId then
+
+                    pcall(function()
+
+                        ts:TeleportToPlaceInstance(game.PlaceId, srv.id, LP)
+
+                    end)
+
+                    return
+
+                end
+
+            end
+
+        end
+
+        OrionLib:MakeNotification({ Name = "Server Hop", Content = "Không tìm thấy server trống", Time = 3 })
+
+    end,
+
+})
+
+MiscTab:AddButton({
+
+    Name = "Rejoin Server",
+
+    Callback = function()
+
+        game:GetService("TeleportService"):Teleport(game.PlaceId, LP)
+
+    end,
+
+})
+
+--============================================================
+
+-- [5] ANTI-AFK
+
+--============================================================
+
+LP.Idled:Connect(function()
+
+    if Flags.AntiAFK then
+
+        safeCall(function()
+
+            VirtualUser:Button2Down(Vector2.new(0, 0), Camera.CFrame)
+
+            task.wait(1)
+
+            VirtualUser:Button2Up(Vector2.new(0, 0), Camera.CFrame)
+
+        end)
+
+    end
+
+end)
+
+--============================================================
+
+-- [6] ESP FRUIT
+
+--============================================================
+
+local espCache = {}
+
+local function createFruitESP(fruit)
+
+    if espCache[fruit] then return end
+
+    local billboard = Instance.new("BillboardGui")
+
+    billboard.Name = "[A]_FruitESP"
+
+    billboard.Adornee = fruit
+
+    billboard.AlwaysOnTop = true
+
+    billboard.Size = UDim2.new(0, 100, 0, 40)
+
+    billboard.StudsOffset = Vector3.new(0, 3, 0)
+
+    local label = Instance.new("TextLabel")
+
+    label.Parent = billboard
+
+    label.BackgroundTransparency = 1
+
+    label.Size = UDim2.new(1, 0, 1, 0)
+
+    label.Text = "🍎 " .. fruit.Name
+
+    label.TextColor3 = Color3.fromRGB(255, 100, 100)
+
+    label.TextStrokeTransparency = 0
+
+    label.TextScaled = true
+
+    label.Font = Enum.Font.GothamBold
+
+    billboard.Parent = fruit
+
+    espCache[fruit] = billboard
+
+end
+
+local function removeFruitESP(fruit)
+
+    if espCache[fruit] then
+
+        espCache[fruit]:Destroy()
+
+        espCache[fruit] = nil
+
+    end
+
+end
+
+-- Lắng nghe trái ác quỷ xuất hiện trong workspace
+
+Workspace.DescendantAdded:Connect(function(obj)
+
+    if not Flags.ESPFruit then return end
+
+    if obj:IsA("Tool") and obj.Name:lower():find("fruit") then
+
+        safeCall(function() createFruitESP(obj) end)
+
+    end
+
+end)
+
+--============================================================
+
+-- [7] MAIN LOOP - XỬ LÝ TẤT CẢ TÍNH NĂNG
+
+--============================================================
+
+-- Xử lý Auto Farm chung
+
+local function processFarm()
+
+    if not isAlive() then return end
+
+    -- Safe Mode check
+
+    if Flags.SafeMode then
+
+        local _, hum = getChar()
+
+        if hum and hum.Health / hum.MaxHealth * 100 < Config.SafeHP then
+
+            return
+
+        end
+
+    end
+
+    -- Tự động trang bị vũ khí
+
+    equipWeapon(Config.WeaponType)
+
+    -- Tìm quái gần nhất
+
+    local enemy, dist = findNearestEnemy(Config.FarmDistance)
+
+    if enemy then
+
+        local root = enemy:FindFirstChild("HumanoidRootPart") or enemy.PrimaryPart
+
+        if root then
+
+            -- Di chuyển đến quái (dùng tween nếu xa)
+
+            if dist > 15 then
+
+                tweenTo(root.Position, 150)
+
+            end
+
+            task.wait(0.1)
+
+            -- Đánh quái
+
+            attack()
+
+            task.wait(Flags.FastAttack and 0.05 or Config.AttackSpeed)
+
+        end
+
+    end
+
+end
+
+-- Xử lý Auto Stats
+
+local function processStats()
+
+    if not isAlive() then return end
+
+    local stats = LP:FindFirstChild("leaderstats")
+
+    if not stats then return end
+
+    local points = stats:FindFirstChild("Points") or stats:FindFirstChild("StatPoints")
+
+    if not points or points.Value <= 0 then return end
+
+    -- Remote add stat
+
+    local addStat = ReplicatedStorage:FindFirstChild("AddStat") or ReplicatedStorage:FindFirstChild("CommF_")
+
+    if addStat then
+
+        local order = { "Melee", "Defense", "Sword", "Gun", "BloxFruit" }
+
+        for _, statName in ipairs(order) do
+
+            if Config.StatPoints[statName] > 0 then
+
+                safeCall(function()
+
+                    addStat:InvokeServer(statName)
+
+                end)
+
+                task.wait(0.3)
+
+                return
+
+            end
+
+        end
+
+    end
+
+end
+
+-- Xử lý Auto Store Fruit
+
+local function processStoreFruit()
+
+    local fruit = getCurrentFruit()
+
+    if not fruit then return end
+
+    -- Gửi remote store
+
+    local storeRemote = ReplicatedStorage:FindFirstChild("StoreFruit")
+
+    if storeRemote then
+
+        safeCall(function() storeRemote:InvokeServer(fruit.Name) end)
+
+    end
+
+end
+
+-- Xử lý Auto Bring Fruit
+
+local function processBringFruit()
+
+    local _, _, hrp = getChar()
+
+    if not hrp then return end
+
+    for _, obj in pairs(Workspace:GetDescendants()) do
+
+        if obj:IsA("Tool") and obj.Name:lower():find("fruit") and obj:FindFirstChild("Handle") then
+
+            teleportInstant(obj.Handle.Position)
+
+            return
+
+        end
+
+    end
+
+end
+
+-- Vòng lặp chính
+
+task.spawn(function()
+
+    while true do
+
+        task.wait(0.1)
+
+        safeCall(function()
+
+            -- Farm chung
+
+            if Flags.AutoFarmLevel or Flags.AutoFarmBone or Flags.AutoFarmBoss or Flags.AutoFarmAllBoss then
+
+                processFarm()
+
+            end
+
+            -- Auto Stats
+
+            if Flags.AutoStats then
+
+                processStats()
+
+            end
+
+            -- Auto Store Fruit
+
+            if Flags.AutoStoreFruit then
+
+                processStoreFruit()
+
+            end
+
+           if Flags.AutoBringFruit then
+           processBringFruit()
+end
+end)
+end
+end)
+
+OrionLib:MakeNotification({
+  Name = "Loaded!",
+  Content ="Script [A] Auto Farm đã sẵn sàng, Master!",
+  Time= 5,
+  })
+
+print("[A] Blox Fruit Auto Farm đã load xong.")
+
+
+
+           
