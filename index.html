@@ -129,6 +129,8 @@ input[type=checkbox]{width:16px;height:16px;cursor:pointer}
     <button class="b red" onclick="skClear()">🗑️ Xóa Tất Cả</button>
   </div>
   <div class="stats-grid" id="sk-stats"></div>
+  <div style="margin:16px 0 6px;color:#94a3b8;font-size:14px;font-weight:600">Thống kê theo Uy Tín</div>
+  <div class="stats-grid" id="sk-trust-stats"></div>
   <div class="tabs" id="sk-tabs"></div>
   <div class="hint">💡 Tích chọn ô vuông từng acc hoặc bấm chọn tất cả. Click vào dòng acc để xem chi tiết.</div>
   <div class="tbox"><table><thead><tr>
@@ -290,7 +292,7 @@ const SK_RANGES = [0,100,200,300,400,500,600,700,800,900,1000];
 const SK_COLORS = ['#94a3b8','#38bdf8','#34d399','#fbbf24','#f97316','#ef4444','#ec4899','#a855f7','#6366f1','#14b8a6','#eab308'];
 let skAcc = [], skView = [], skTag = 'all';
 const SK_TRUST_BUCKETS = [
-  {key:'0-49', label:'0–49', test:v=>v>=0&&v<50},
+  {key:'0-49', label:'< 50', test:v=>v>=0&&v<50},
   {key:'50-59', label:'50–59', test:v=>v>=50&&v<60},
   {key:'60-69', label:'60–69', test:v=>v>=60&&v<70},
   {key:'70-79', label:'70–79', test:v=>v>=70&&v<80},
@@ -305,6 +307,8 @@ const skLabel = t => t === 1000 ? '≥ 1000' : t === 0 ? '< 100' : `${t} - ${t+9
   let h = `<div class="sc" style="border-left-color:#94a3b8"><h3>Tổng Acc</h3><div id="sk-c-total">0</div></div>`;
   SK_RANGES.forEach((t,i) => h += `<div class="sc" style="border-left-color:${SK_COLORS[i]}"><h3>${skLabel(t)}</h3><div id="sk-c-${t}">0</div></div>`);
   el('sk-stats').innerHTML = h;
+  const trustStats = [...SK_TRUST_BUCKETS, {key:'unknown',label:'Không rõ',test:()=>false}];
+  el('sk-trust-stats').innerHTML = trustStats.map((b,i)=>`<div class="sc" style="border-left-color:${SK_COLORS[i % SK_COLORS.length]}"><h3>Uy Tín ${b.label}</h3><div id="sk-trust-count-${b.key}">0</div></div>`).join('');
   let tb = `<button class="tab active" onclick="skTab('all',this)">Tất cả</button>`;
   SK_RANGES.forEach(t => tb += `<button class="tab" onclick="skTab(${t},this)">${skLabel(t)}</button>`);
   el('sk-tabs').innerHTML = tb;
@@ -352,8 +356,16 @@ function skProcess(){
 }
 function skFilter(){
   const kw=el('sk-search').value.toLowerCase().trim(),st=el('sk-status').value,tr=el('sk-trust').value;
-  let dStats=skAcc;
-  if(st!=='all')dStats=dStats.filter(a=>a.status.toLowerCase()===st.toLowerCase());
+  // Nhóm nền dùng để thống kê Uy Tín: áp dụng tìm kiếm và tình trạng, chưa áp dụng lọc Uy Tín.
+  let dBase=skAcc;
+  if(st!=='all')dBase=dBase.filter(a=>a.status.toLowerCase()===st.toLowerCase());
+  if(kw)dBase=dBase.filter(a=>a.account.toLowerCase().includes(kw)||a.raw.toLowerCase().includes(kw));
+  const trustBuckets=[...SK_TRUST_BUCKETS.map(b=>b.key),'unknown'];
+  trustBuckets.forEach(key=>{
+    const count=dBase.filter(a=>skTrustBucket(a.trust)===key).length;
+    const node=el('sk-trust-count-'+key); if(node)node.textContent=count.toLocaleString('vi-VN');
+  });
+  let dStats=dBase;
   if(tr!=='all'){
     const includeHigher=el('sk-trust-higher').checked;
     if(includeHigher && tr!=='unknown'){
@@ -363,8 +375,7 @@ function skFilter(){
       dStats=dStats.filter(a=>skTrustBucket(a.trust)===tr);
     }
   }
-  if(kw)dStats=dStats.filter(a=>a.account.toLowerCase().includes(kw)||a.raw.toLowerCase().includes(kw));
-  // Các thẻ Tổng Acc, <100, 100-199... phản ánh chính tập acc sau khi lọc Uy Tín.
+  // Các thẻ Tổng Acc, <100, 100-199... phản ánh tập acc sau khi lọc Uy Tín.
   el('sk-c-total').textContent=dStats.length.toLocaleString('vi-VN');
   SK_RANGES.forEach(t=>el('sk-c-'+t).textContent=dStats.filter(a=>skIn(a.skins,t)).length.toLocaleString('vi-VN'));
 
@@ -410,7 +421,7 @@ function skDetail(a){
 }
 function skClear(){
   el('sk-in').value='';el('sk-file').value='';el('sk-search').value='';el('sk-status').innerHTML='<option value="all">-- Tất cả Tình Trạng --</option>';el('sk-trust').value='all';el('sk-trust-higher').checked=false;el('sk-fname').textContent='Chưa chọn file nào';
-  skAcc=[];skView=[];el('sk-c-total').textContent='0';SK_RANGES.forEach(t=>el('sk-c-'+t).textContent='0');
+  skAcc=[];skView=[];el('sk-c-total').textContent='0';SK_RANGES.forEach(t=>el('sk-c-'+t).textContent='0');[...SK_TRUST_BUCKETS.map(b=>b.key),'unknown'].forEach(k=>{const n=el('sk-trust-count-'+k);if(n)n.textContent='0';});
   skRender();
 }
 el('ft-file').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;el('ft-fname').textContent=f.name;readTxt(f,t=>{el('ft-in').value=t;ftProcess();});});
