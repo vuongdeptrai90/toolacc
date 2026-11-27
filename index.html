@@ -136,7 +136,7 @@ input[type=checkbox]{width:16px;height:16px;cursor:pointer}
   <div style="margin:16px 0 6px;color:#94a3b8;font-size:14px;font-weight:600">Thống kê theo Uy Tín</div>
   <div class="stats-grid" id="sk-trust-stats"></div>
   <div class="tabs" id="sk-tabs"></div>
-  <div class="hint">💡 Tích chọn ô vuông từng acc hoặc bấm chọn tất cả. Click vào dòng acc để xem chi tiết.</div>
+  <div class="hint">💡 Tích chọn ô vuông từng acc hoặc bấm chọn tất cả. Click vào dòng acc để xem chi tiết. Lưu ý: ô tích vẫn được giữ khi bạn chuyển qua tab/vùng khác, nên có thể tích rải rác ở nhiều vùng (100-199, 200-299...) rồi bấm "Tải File Đang Lọc" — file sẽ gộp đúng các acc đã tích đó; nếu không tích acc nào thì mới tải theo đúng vùng đang xem.</div>
   <div class="tbox"><table><thead><tr>
     <th style="width:40px;text-align:center"><input type="checkbox" id="sk-all" onclick="skSelectAll(this)"></th>
     <th>#</th><th>Tài Khoản / Mật Khẩu</th><th>Tên Ingame</th><th>Rank</th><th>Tướng</th><th>Skin</th><th>Uy Tín</th><th>Tình Trạng</th>
@@ -422,7 +422,16 @@ function skCopy(type){
   }).join('\n');
   copyText(out,`Đã sao chép thành công ${sel.length} tài khoản!`); skCloseCopy();
 }
-function skExport(){if(!skView.length)return alert('Không có dữ liệu nào để xuất file!');const st=el('sk-status').value,sn=st==='all'?'TatCaTinhTrang':st.replace(/[^a-zA-Z0-9]/g,'_');dl(skView.map(a=>a.raw).join('\n'),`Acc_Skin_${skTag}_${sn}.txt`);}
+function skExport(){
+  const picked=skAcc.filter(a=>a.selected);
+  if(picked.length){
+    dl(picked.map(a=>a.raw).join('\n'),`Acc_DaChon_${picked.length}.txt`);
+    return;
+  }
+  if(!skView.length)return alert('Không có dữ liệu nào để xuất file! (Hãy tích chọn acc hoặc để bộ lọc hiển thị ít nhất 1 acc)');
+  const st=el('sk-status').value,sn=st==='all'?'TatCaTinhTrang':st.replace(/[^a-zA-Z0-9]/g,'_');
+  dl(skView.map(a=>a.raw).join('\n'),`Acc_Skin_${skTag}_${sn}.txt`);
+}
 function skDetail(a){
   el('dTitle').textContent='Thông tin tài khoản: '+a.account;
   el('dBody').innerHTML=`<div class="info"><strong>Tài Khoản / Mật Khẩu:</strong> ${esc(a.account)}</div><div class="info"><strong>Tên Ingame:</strong> ${esc(a.name)}</div><div class="info"><strong>Rank:</strong> ${esc(a.rank)}</div><div class="info"><strong>Số Tướng:</strong> ${a.heroes}</div><div class="info"><strong>Số Skin:</strong> ${a.skins}</div><div class="info"><strong>Uy Tín:</strong> ${a.trust===null?'Không có dữ liệu':a.trust}</div><div class="info"><strong>Tình Trạng:</strong> ${esc(a.status)}</div><div style="margin-top:15px;font-weight:bold;color:#38bdf8;text-align:left">Dòng dữ liệu gốc (Raw Log):</div><div class="raw">${esc(a.raw)}</div>`;
@@ -767,4 +776,4 @@ function ts2CopyFilteredLogs() {
 }
 </script>
 </body>
-  </html>
+</html>
