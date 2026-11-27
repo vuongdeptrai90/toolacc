@@ -185,10 +185,14 @@ input[type=checkbox]{width:16px;height:16px;cursor:pointer}
                 <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2 text-slate-500 text-[10px]"></i>
             </div>
             <div class="text-[10px] text-slate-400 font-medium" id="ts2-filterStatus">Tất cả acc</div>
+            <button onclick="ts2FindDuplicateSkins()" class="w-full sm:w-auto px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-slate-950 font-bold rounded-lg text-[11px] transition flex items-center justify-center gap-1">
+                <i class="fa-solid fa-triangle-exclamation"></i> Tìm Skin Trùng
+            </button>
             <button onclick="ts2CopyFilteredLogs()" class="w-full sm:w-auto px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold rounded-lg text-[11px] transition flex items-center justify-center gap-1">
                 <i class="fa-regular fa-copy"></i> Copy Đang Lọc
             </button>
         </div>
+        <div class="text-[10px] text-slate-500 -mt-1">💡 Tick nhiều ô bậc skin (SSS, SS, Anime...) bên trên để lọc gộp theo nhiều bậc cùng lúc. Bấm lại ô đang chọn để bỏ chọn, bấm "TẤT CẢ" để xoá hết lựa chọn.</div>
 
         <div class="space-y-2" id="ts2-cardListContainer">
             <div class="bg-slate-800/80 p-6 rounded-xl border border-slate-700 text-center text-slate-500 text-xs">
@@ -201,7 +205,7 @@ input[type=checkbox]{width:16px;height:16px;cursor:pointer}
         <div class="bg-slate-900 border border-slate-700 rounded-xl max-w-md w-full p-4 space-y-3 shadow-2xl">
             <div class="flex justify-between items-center border-b border-slate-800 pb-2">
                 <h3 class="text-xs font-bold text-amber-400 flex items-center gap-1.5">
-                    <i class="fa-solid fa-circle-info"></i> Chi Tiết Skin Tài Khoản
+                    <i class="fa-solid fa-circle-info"></i> <span id="ts2-modalTitle">Chi Tiết Skin Tài Khoản</span>
                 </h3>
                 <button onclick="ts2CloseModal()" class="text-slate-400 hover:text-white text-xs"><i class="fa-solid fa-xmark"></i></button>
             </div>
@@ -520,7 +524,7 @@ tuanx8456|tuan5511| UID : 1243068494054513 | NAME : _ilys.meiii୨ৎ | VIP : 4 
 Khanhbaka|0907469385kn| UID : 935288184833137 | NAME : Bầu◠Trời◠Blue | VIP : 4 | RANK HIỆN TẠI : Kim Cương II [5 Sao] | RANK CAO NHẤT : Chiến Tướng | TỔNG TRẬN : 7,420 | LEVEL : 30 | TƯỚNG : 128 | SKIN : 275 | QH : 0 | LỊCH SỬ NẠP : 0 | SÒ : 0 | CCCD : YES [3125****] [9 SỐ] | EMAIL : YES [ĐÃ XÁC THỰC] [law****@gmail.com] | AUTHEN : NO | SĐT : YES [+84 34***1827] | FB : LIVE | BAND : NO | NGÀY ĐĂNG KÝ : 17:45:04 12-07-2017 | REGION : VN | ĐĂNG NHẬP GẦN NHẤT : 16:06:56 29-10-2026 | TẦN SUẤT ONLINE : CAO | TÌNH TRẠNG ONLINE : NGOẠI TUYẾN | GAMES : Liên Quân Mobile | ĐỔI EMAIL GẦN NHẤT : 06:43:49 12-06-2018 | ĐỔI SĐT GẦN NHẤT : 14:51:24 11-10-2018 | ĐỔI PASSWORD GẦN NHẤT : 12:25:08 05-10-2018 | GỐC TÀI KHOẢN : GARENA | SS : 7 [Murad Siêu việt, Yorn Thế Tử Nguyệt Tộc, Ngộ Không Siêu việt, Arthur Siêu Việt, Liliana Nguyệt mị ly, Tulen Tân Thần Thiên Hà, Quillen Đặc công mãng xà] | SSS : 0 [NO SSS] | ANIME : 0 [NO ANIME] | AOV : 3 [Butterfly Bình minh tận thế, Ngộ Không Nhóc tỳ bá đạo, Nakroth Siêu Việt] | OTHER : 10 [Veera Kimono, Azzen'Ka Giáng sinh An lành, Maloch Đấu Sĩ Đoạt Thẻ, Nakroth Khiêu chiến, Natalya Nghệ nhân lân, Superman Bất công lý, Yena Vũ Điệu Giáng Sinh, Volkath Ma kỵ tử sĩ, Dirak Ông bầu Showbiz, Yan Giấc mơ sao] | SKIN HIẾM : 0 [NO SKIN HIẾM] | MYSTIC : 0 [NO MYSTIC] | S-DREAMER : 0 [NO S-DREAMER] | VALENTINE : 1 [Tel'Annas Chung Tình Tiễn] | SSM : 0 [NO SSM] | TÌNH TRẠNG : ACC FULL`;
 
 let ts2ParsedAccounts = [];
-let ts2CurrentTierFilter = 'ALL';
+let ts2SelectedTiers = new Set(); // rỗng = TẤT CẢ; có thể chọn nhiều bậc skin cùng lúc (SSS, SS, Anime...)
 
 function ts2LoadSample() {
     el('ts2-rawInput').value = ts2SampleData;
@@ -531,7 +535,7 @@ function ts2LoadSample() {
 function ts2ResetAll() {
     el('ts2-rawInput').value = '';
     ts2ParsedAccounts = [];
-    ts2CurrentTierFilter = 'ALL';
+    ts2SelectedTiers = new Set();
     ts2UpdateCount();
     ts2RenderGrid({});
     ts2RenderCards([]);
@@ -627,7 +631,7 @@ function ts2ProcessData() {
         return { id: idx + 1, raw: line, credential, name, rank, skinCount, heroCount, trust, status, tiers, allSkins };
     });
 
-    ts2CurrentTierFilter = 'ALL';
+    ts2SelectedTiers = new Set();
     ts2ApplyFilter();
 }
 
@@ -649,8 +653,9 @@ function ts2ApplyFilter() {
     });
 
     const filtered = ts2ParsedAccounts.filter(acc => {
-        if (ts2CurrentTierFilter !== 'ALL') {
-            if (!acc.tiers[ts2CurrentTierFilter] || acc.tiers[ts2CurrentTierFilter].length === 0) return false;
+        if (ts2SelectedTiers.size > 0) {
+            const hasAnySelectedTier = [...ts2SelectedTiers].some(t => acc.tiers[t] && acc.tiers[t].length > 0);
+            if (!hasAnySelectedTier) return false;
         }
         if (searchQuery) {
             const matched = acc.allSkins.some(s => s.name.toLowerCase().includes(searchQuery)) ||
@@ -664,11 +669,18 @@ function ts2ApplyFilter() {
 
     ts2RenderGrid(tierCounts);
     ts2RenderCards(filtered);
-    el('ts2-filterStatus').innerText = `[${ts2CurrentTierFilter}] - ${filtered.length} acc`;
+    const label = ts2SelectedTiers.size > 0 ? [...ts2SelectedTiers].join(' + ') : 'TẤT CẢ';
+    el('ts2-filterStatus').innerText = `[${label}] - ${filtered.length} acc`;
 }
 
 function ts2SelectTier(tierKey) {
-    ts2CurrentTierFilter = tierKey;
+    if (tierKey === 'ALL') {
+        ts2SelectedTiers = new Set();
+    } else if (ts2SelectedTiers.has(tierKey)) {
+        ts2SelectedTiers.delete(tierKey);
+    } else {
+        ts2SelectedTiers.add(tierKey);
+    }
     ts2ApplyFilter();
 }
 
@@ -700,7 +712,7 @@ function ts2RenderGrid(tierCounts) {
 
     items.forEach(item => {
         const count = tierCounts[item.key] || 0;
-        const isActive = ts2CurrentTierFilter === item.key ? 'active' : '';
+        const isActive = (item.key === 'ALL' ? ts2SelectedTiers.size === 0 : ts2SelectedTiers.has(item.key)) ? 'active' : '';
 
         const card = document.createElement('div');
         card.className = `ts2-stat-card ${isActive}`;
@@ -769,6 +781,7 @@ function ts2RenderCards(list) {
 }
 
 function ts2ShowSkinModal(tiers) {
+    el('ts2-modalTitle').textContent = 'Chi Tiết Skin Tài Khoản';
     const modalContent = el('ts2-modalContent');
     modalContent.innerHTML = '';
 
@@ -791,6 +804,48 @@ function ts2CloseModal() {
 function ts2CopySingle(encodedText) {
     const text = decodeURIComponent(encodedText);
     copyText(text, 'Đã copy log tài khoản!');
+}
+
+function ts2FindDuplicateSkins() {
+    if (!ts2ParsedAccounts.length) return alert('Chưa có dữ liệu. Hãy dán log và bấm Phân Tích trước!');
+
+    // Gom theo tên skin (không phân biệt hoa/thường, khoảng trắng dư) -> danh sách acc đang sở hữu skin đó.
+    const skinMap = new Map();
+    ts2ParsedAccounts.forEach((acc, idx) => {
+        acc.allSkins.forEach(s => {
+            const key = s.name.trim().toLowerCase().replace(/\s+/g, ' ');
+            if (!key) return;
+            if (!skinMap.has(key)) skinMap.set(key, []);
+            skinMap.get(key).push({ accIdx: idx + 1, accName: acc.name, credential: acc.credential, tier: s.tier, skinName: s.name });
+        });
+    });
+
+    const duplicates = [];
+    skinMap.forEach(entries => {
+        const uniqueAccIdx = new Set(entries.map(e => e.accIdx));
+        if (uniqueAccIdx.size > 1) duplicates.push({ skin: entries[0].skinName, tier: entries[0].tier, entries, count: uniqueAccIdx.size });
+    });
+    duplicates.sort((a, b) => b.count - a.count);
+
+    el('ts2-modalTitle').textContent = `🔁 Skin Trùng Giữa Các Acc (${duplicates.length} skin)`;
+    const modalContent = el('ts2-modalContent');
+    modalContent.innerHTML = '';
+
+    if (!duplicates.length) {
+        modalContent.innerHTML = `<div class="text-emerald-400 text-xs">✅ Không phát hiện skin nào bị trùng giữa các acc đang có trong danh sách.</div>`;
+    } else {
+        modalContent.innerHTML = `<div class="text-slate-400 text-[10px] mb-1">Những skin dưới đây xuất hiện ở từ 2 acc trở lên — tránh đăng bán 2 acc cùng lúc với cùng 1 skin hiếm làm điểm nhấn.</div>`;
+        duplicates.forEach(d => {
+            const accList = d.entries.map(e => `#${e.accIdx} ${esc(e.accName)}`).join(', ');
+            const div = document.createElement('div');
+            div.className = 'bg-slate-800/80 p-2 rounded-lg border border-rose-500/30';
+            div.innerHTML = `<div class="text-rose-400 font-bold text-xs">[${esc(d.tier)}] ${esc(d.skin)} <span class="text-slate-400 font-normal">— trùng ở ${d.count} acc</span></div><div class="text-slate-300 text-[10px] mt-0.5">${accList}</div>`;
+            modalContent.appendChild(div);
+        });
+    }
+
+    el('ts2-skinModal').classList.remove('hidden');
+    el('ts2-skinModal').classList.add('flex');
 }
 
 function ts2CopyFilteredLogs() {
