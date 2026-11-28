@@ -124,6 +124,9 @@ input[type=checkbox]{width:16px;height:16px;cursor:pointer}
       <option value="unknown">Không rõ Ban</option>
     </select>
   </div>
+  <div class="ctl" style="margin-top:0;grid-template-columns:1fr">
+    <select id="sk-banduration"><option value="all">-- Tất cả thời hạn Ban (chỉ áp dụng cho Ban: Yes) --</option></select>
+  </div>
   <label style="display:flex;align-items:center;gap:8px;margin:8px 0 8px;color:#c4b5fd;font-size:13px;cursor:pointer">
     <input type="checkbox" id="sk-trust-higher" style="width:16px;height:16px">
     Bao gồm cả acc có Uy Tín cao hơn khoảng đang chọn
@@ -145,7 +148,7 @@ input[type=checkbox]{width:16px;height:16px;cursor:pointer}
   <div class="hint">💡 Tích chọn ô vuông từng acc hoặc bấm chọn tất cả. Click vào dòng acc để xem chi tiết. Lưu ý: ô tích vẫn được giữ khi bạn chuyển qua tab/vùng khác, nên có thể tích rải rác ở nhiều vùng (100-199, 200-299...) rồi bấm "Tải File Đang Lọc" — file sẽ gộp đúng các acc đã tích đó; nếu không tích acc nào thì mới tải theo đúng vùng đang xem.</div>
   <div class="tbox"><table><thead><tr>
     <th style="width:40px;text-align:center"><input type="checkbox" id="sk-all" onclick="skSelectAll(this)"></th>
-    <th>#</th><th>Tài Khoản / Mật Khẩu</th><th>Tên Ingame</th><th>Rank</th><th>Tướng</th><th>Skin</th><th>Uy Tín</th><th>Tình Trạng</th>
+    <th>#</th><th>Tài Khoản / Mật Khẩu</th><th>Tên Ingame</th><th>Rank</th><th>Tướng</th><th>Skin</th><th>Uy Tín</th><th>Ban</th><th>Tình Trạng</th>
   </tr></thead><tbody id="sk-body"></tbody></table></div>
 </section>
 <section class="panel" id="p-skin2">
@@ -363,6 +366,7 @@ el('sk-file').addEventListener('change',e=>{
 el('sk-search').addEventListener('input',skFilter);
 el('sk-status').addEventListener('change',skFilter);
 el('sk-ban').addEventListener('change',skFilter);
+el('sk-banduration').addEventListener('change',skFilter);
 el('sk-trust').addEventListener('change',skFilter);
 el('sk-trust-higher').addEventListener('change',e=>{if(e.target.checked)el('sk-trust-lower').checked=false;skFilter();});
 el('sk-trust-lower').addEventListener('change',e=>{if(e.target.checked)el('sk-trust-higher').checked=false;skFilter();});
@@ -370,7 +374,7 @@ function skProcess(){
   skAcc=[]; const statuses=new Set();
   el('sk-in').value.split('\n').forEach(line=>{
     const raw=line.trim(); if(!raw)return;
-    let account='N/A',name='N/A',rank='N/A',heroes=0,skins=0,status='N/A',trust=null,ban='unknown';
+    let account='N/A',name='N/A',rank='N/A',heroes=0,skins=0,status='N/A',trust=null,ban='unknown',banDetail='',banDuration='',banFrom='',banTo='';
     if(raw.includes('FINAL =')){
       const p=raw.split('='); if(p.length>1) account=p.slice(1).join('=').split('|')[0].trim();
     } else if(raw.includes('|')){
@@ -388,6 +392,15 @@ function skProcess(){
     if((m=raw.match(/(?:^|\|)\s*BAN\s*[:=]\s*([^|]+)/i))){
       const bv=m[1].trim();
       ban=/^yes/i.test(bv)?'yes':(/^no/i.test(bv)?'no':'unknown');
+      // Vd: "Yes [2 Năm (05:40:49 22/11/2026 - 05:40:49 21/11/2029)]" -> lấy thời hạn + khoảng ngày
+      const bracketMatch=bv.match(/\[([^\]]+)\]/);
+      if(bracketMatch){
+        banDetail=bracketMatch[1].trim();
+        const durMatch=banDetail.match(/^([^(]+)/);
+        banDuration=durMatch?durMatch[1].trim():banDetail;
+        const rangeMatch=banDetail.match(/\(([^-]+)-(.+)\)/);
+        if(rangeMatch){banFrom=rangeMatch[1].trim();banTo=rangeMatch[2].trim();}
+      }
     }
     if(sm){
       skins=parseInt(sm[1]);
@@ -396,19 +409,43 @@ function skProcess(){
         const re=new RegExp('(?:^|\\|)\\s*'+t.replace(/[.*+?^${}()|[\\]\\]/g,'\\$&')+'\\s*:\\s*(\\d+)','i');
         const tm=raw.match(re); if(tm) tiers[t.toUpperCase()]=parseInt(tm[1],10);
       });
-      skAcc.push({account,name,rank,heroes,skins,status,trust,ban,tiers,raw,selected:false});
+      skAcc.push({account,name,rank,heroes,skins,status,trust,ban,banDetail,banDuration,banFrom,banTo,tiers,raw,selected:false});
     }
   });
   const sel=el('sk-status'),cur=sel.value; sel.innerHTML='<option value="all">-- Tất cả Tình Trạng --</option>';
   [...statuses].sort().forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s;sel.appendChild(o);});
-  if(statuses.has(cur))sel.value=cur; skFilter();
+  if(statuses.has(cur))sel.value=cur;
+  const durations=new Set(skAcc.filter(a=>a.ban==='yes'&&a.banDuration).map(a=>a.banDuration));
+  const selD=el('sk-banduration'),curD=selD.value; selD.innerHTML='<option value="all">-- Tất cả thời hạn Ban (chỉ áp dụng cho Ban: Yes) --</option>';
+  // Gom theo đơn vị (Ngày/Tháng/Năm/Khác) rồi sắp xếp tăng dần theo số, tránh kiểu "14 Ngày" đứng trước "2 Năm" do sắp chuỗi chữ.
+  const unitOrder=['Ngày','Tuần','Tháng','Năm','Khác'];
+  const grouped={};unitOrder.forEach(u=>grouped[u]=[]);
+  [...durations].forEach(d=>{
+    const m=d.match(/^(\d+)\s*(Ngày|Tuần|Tháng|Năm)/i);
+    if(m){
+      const unit=unitOrder.find(u=>u.toLowerCase()===m[2].toLowerCase())||'Khác';
+      grouped[unit].push({num:parseInt(m[1],10),label:d});
+    } else {
+      grouped['Khác'].push({num:0,label:d});
+    }
+  });
+  unitOrder.forEach(unit=>{
+    const list=grouped[unit]; if(!list.length)return;
+    list.sort((a,b)=>a.num-b.num||a.label.localeCompare(b.label));
+    const og=document.createElement('optgroup');og.label=unit==='Khác'?'Khác (Vĩnh viễn...)':'Theo '+unit;
+    list.forEach(({label})=>{const o=document.createElement('option');o.value=label;o.textContent='🚫 '+label;og.appendChild(o);});
+    selD.appendChild(og);
+  });
+  if(durations.has(curD))selD.value=curD;
+  skFilter();
 }
 function skFilter(){
-  const kw=el('sk-search').value.toLowerCase().trim(),st=el('sk-status').value,tr=el('sk-trust').value,bn=el('sk-ban').value;
-  // Nhóm nền dùng để thống kê Uy Tín: áp dụng tìm kiếm, tình trạng và Ban, chưa áp dụng lọc Uy Tín.
+  const kw=el('sk-search').value.toLowerCase().trim(),st=el('sk-status').value,tr=el('sk-trust').value,bn=el('sk-ban').value,bd=el('sk-banduration').value;
+  // Nhóm nền dùng để thống kê Uy Tín: áp dụng tìm kiếm, tình trạng, Ban và thời hạn Ban, chưa áp dụng lọc Uy Tín.
   let dBase=skAcc;
   if(st!=='all')dBase=dBase.filter(a=>a.status.toLowerCase()===st.toLowerCase());
   if(bn!=='all')dBase=dBase.filter(a=>a.ban===bn);
+  if(bd!=='all')dBase=dBase.filter(a=>a.ban==='yes'&&a.banDuration===bd);
   if(kw)dBase=dBase.filter(a=>a.account.toLowerCase().includes(kw)||a.raw.toLowerCase().includes(kw));
   const trustBuckets=[...SK_TRUST_BUCKETS.map(b=>b.key),'unknown'];
   trustBuckets.forEach(key=>{
@@ -441,12 +478,17 @@ function skBadge(s){
   const u=s.toUpperCase(); const [bg,fg]=u.includes('FULL')?['#065f46','#34d399']:(u.includes('SỐ')||u.includes('MAIL')||u.includes('DÍNH'))?['#9a3412','#fdba74']:['#334155','#cbd5e1'];
   return `<span class="badge" style="background:${bg};color:${fg}">${esc(s)}</span>`;
 }
+function skBanBadge(a){
+  if(a.ban==='yes') return `<span class="badge" style="background:#7f1d1d;color:#fca5a5" title="${esc(a.banDetail||'')}">🚫 ${esc(a.banDuration||'Yes')}</span>`;
+  if(a.ban==='no') return `<span class="badge" style="background:#065f46;color:#34d399">✓ No</span>`;
+  return `<span class="badge" style="background:#334155;color:#94a3b8">—</span>`;
+}
 function skRender(){
   const tb=el('sk-body');tb.innerHTML='';
-  if(!skView.length){tb.innerHTML='<tr style="cursor:default"><td colspan="9" style="text-align:center;color:#64748b">Chưa có dữ liệu / không có acc phù hợp. Hãy tải file hoặc dán danh sách và bấm "Phân Tích".</td></tr>';el('sk-all').checked=false;return;}
+  if(!skView.length){tb.innerHTML='<tr style="cursor:default"><td colspan="10" style="text-align:center;color:#64748b">Chưa có dữ liệu / không có acc phù hợp. Hãy tải file hoặc dán danh sách và bấm "Phân Tích".</td></tr>';el('sk-all').checked=false;return;}
   skView.forEach((a,i)=>{
     const tr=document.createElement('tr');tr.onclick=e=>{if(e.target.type!=='checkbox')skDetail(a);};
-    tr.innerHTML=`<td style="text-align:center"><input type="checkbox" ${a.selected?'checked':''}></td><td>${i+1}</td><td><strong>${esc(a.account)}</strong></td><td>${esc(a.name)}</td><td>${esc(a.rank)}</td><td>${a.heroes>0?a.heroes:'-'}</td><td><span class="badge" style="background:#065f46;color:#34d399">${a.skins} skin</span></td><td><span class="badge" style="background:#4c1d95;color:#ddd6fe">${a.trust===null?'—':a.trust}</span></td><td>${skBadge(a.status)}</td>`;
+    tr.innerHTML=`<td style="text-align:center"><input type="checkbox" ${a.selected?'checked':''}></td><td>${i+1}</td><td><strong>${esc(a.account)}</strong></td><td>${esc(a.name)}</td><td>${esc(a.rank)}</td><td>${a.heroes>0?a.heroes:'-'}</td><td><span class="badge" style="background:#065f46;color:#34d399">${a.skins} skin</span></td><td><span class="badge" style="background:#4c1d95;color:#ddd6fe">${a.trust===null?'—':a.trust}</span></td><td>${skBanBadge(a)}</td><td>${skBadge(a.status)}</td>`;
     tr.querySelector('input').onchange=e=>{a.selected=e.target.checked;skSyncAll();};tb.appendChild(tr);
   });skSyncAll();
 }
@@ -461,7 +503,8 @@ function skCopy(type){
     if(type==='full') return a.raw;
     if(type==='shop'){
       const tierText=Object.entries(a.tiers||{}).map(([k,v])=>`${k}: ${v}`).join(' | ');
-      return `Tài khoản: ${a.account} | Tên: ${a.name} | Rank: ${a.rank} | Tướng: ${a.heroes} | Tổng Skin: ${a.skins} | ${tierText ? tierText+' | ' : ''}Uy Tín: ${a.trust===null?'Không rõ':a.trust} | Tình Trạng: ${a.status}`;
+      const banText=a.ban==='yes'?`Ban: Yes (${a.banDuration||'Có thời hạn'})`:(a.ban==='no'?'Ban: No':'Ban: Không rõ');
+      return `Tài khoản: ${a.account} | Tên: ${a.name} | Rank: ${a.rank} | Tướng: ${a.heroes} | Tổng Skin: ${a.skins} | ${tierText ? tierText+' | ' : ''}Uy Tín: ${a.trust===null?'Không rõ':a.trust} | ${banText} | Tình Trạng: ${a.status}`;
     }
     return a.account;
   }).join('\n');
@@ -479,11 +522,14 @@ function skExport(){
 }
 function skDetail(a){
   el('dTitle').textContent='Thông tin tài khoản: '+a.account;
-  el('dBody').innerHTML=`<div class="info"><strong>Tài Khoản / Mật Khẩu:</strong> ${esc(a.account)}</div><div class="info"><strong>Tên Ingame:</strong> ${esc(a.name)}</div><div class="info"><strong>Rank:</strong> ${esc(a.rank)}</div><div class="info"><strong>Số Tướng:</strong> ${a.heroes}</div><div class="info"><strong>Số Skin:</strong> ${a.skins}</div><div class="info"><strong>Uy Tín:</strong> ${a.trust===null?'Không có dữ liệu':a.trust}</div><div class="info"><strong>Tình Trạng:</strong> ${esc(a.status)}</div><div style="margin-top:15px;font-weight:bold;color:#38bdf8;text-align:left">Dòng dữ liệu gốc (Raw Log):</div><div class="raw">${esc(a.raw)}</div>`;
+  const banInfo = a.ban==='yes'
+    ? `<div class="info"><strong>Ban:</strong> 🚫 Yes — ${esc(a.banDuration||'')}${a.banFrom&&a.banTo?` (Từ ${esc(a.banFrom)} đến ${esc(a.banTo)})`:''}</div>`
+    : `<div class="info"><strong>Ban:</strong> ${a.ban==='no'?'✓ No':'Không rõ'}</div>`;
+  el('dBody').innerHTML=`<div class="info"><strong>Tài Khoản / Mật Khẩu:</strong> ${esc(a.account)}</div><div class="info"><strong>Tên Ingame:</strong> ${esc(a.name)}</div><div class="info"><strong>Rank:</strong> ${esc(a.rank)}</div><div class="info"><strong>Số Tướng:</strong> ${a.heroes}</div><div class="info"><strong>Số Skin:</strong> ${a.skins}</div><div class="info"><strong>Uy Tín:</strong> ${a.trust===null?'Không có dữ liệu':a.trust}</div>${banInfo}<div class="info"><strong>Tình Trạng:</strong> ${esc(a.status)}</div><div style="margin-top:15px;font-weight:bold;color:#38bdf8;text-align:left">Dòng dữ liệu gốc (Raw Log):</div><div class="raw">${esc(a.raw)}</div>`;
   el('detailModal').style.display='flex';
 }
 function skClear(){
-  el('sk-in').value='';el('sk-file').value='';el('sk-search').value='';el('sk-status').innerHTML='<option value="all">-- Tất cả Tình Trạng --</option>';el('sk-trust').value='all';el('sk-ban').value='all';el('sk-trust-higher').checked=false;el('sk-trust-lower').checked=false;el('sk-fname').textContent='Chưa chọn file nào';el('sk-fname').title='';
+  el('sk-in').value='';el('sk-file').value='';el('sk-search').value='';el('sk-status').innerHTML='<option value="all">-- Tất cả Tình Trạng --</option>';el('sk-trust').value='all';el('sk-ban').value='all';el('sk-banduration').innerHTML='<option value="all">-- Tất cả thời hạn Ban (chỉ áp dụng cho Ban: Yes) --</option>';el('sk-trust-higher').checked=false;el('sk-trust-lower').checked=false;el('sk-fname').textContent='Chưa chọn file nào';el('sk-fname').title='';
   skAcc=[];skView=[];el('sk-c-total').textContent='0';SK_RANGES.forEach(t=>el('sk-c-'+t).textContent='0');[...SK_TRUST_BUCKETS.map(b=>b.key),'unknown'].forEach(k=>{const n=el('sk-trust-count-'+k);if(n)n.textContent='0';});
   skRender();
 }
