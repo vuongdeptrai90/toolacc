@@ -244,6 +244,7 @@ input[type=checkbox]{width:16px;height:16px;cursor:pointer}
 </section>
 <section class="panel card" id="p-shuffle">
   <h2>🔀 Xáo Trộn Vị Trí Danh Sách Acc</h2><p class="desc">Mỗi dòng 1 acc, đảo ngẫu nhiên vị trí</p>
+  <div class="upload"><label for="sh-file">📁 Chọn file .txt</label><input type="file" id="sh-file" accept=".txt" multiple><span class="fname" id="sh-fname">Chưa chọn file</span></div>
   <label class="lb">Dán danh sách Acc vào đây:</label><textarea id="sh-in" placeholder="user1|pass1&#10;user2|pass2&#10;FINAL = user3:pass3..."></textarea>
   <div class="stat">Tổng số dòng hiện tại: <b id="sh-count">0</b></div>
   <div class="row"><button class="b blue" onclick="shShuffle()">🎲 XÁO TRỘN VỊ TRÍ</button><button class="b green" onclick="copyFrom('sh-out')">📋 SAO CHÉP KẾT QUẢ</button><button class="b red" onclick="shClear()">🗑️ XÓA</button></div>
@@ -521,8 +522,13 @@ function jsCopy(){if(!jsData)return alert('Chưa có dữ liệu!');copyText(jsD
 function jsDownload(){if(!jsData)return alert('Chưa có dữ liệu!');dl(jsData,'accounts.json','application/json');}
 const shLines=()=>el('sh-in').value.split('\n').filter(l=>l.trim()!=='');
 el('sh-in').addEventListener('input',()=>el('sh-count').textContent=shLines().length);
+el('sh-file').addEventListener('change',e=>{
+  const files=e.target.files; if(!files.length)return;
+  fnameLabel(el('sh-fname'),files);
+  readTxtMulti(files,t=>{el('sh-in').value=t;el('sh-count').textContent=shLines().length;shShuffle();});
+});
 function shShuffle(){const a=shLines();if(!a.length)return alert('Vui lòng dán danh sách tài khoản vào trước!');for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}el('sh-out').value=a.join('\n');}
-function shClear(){el('sh-in').value='';el('sh-out').value='';el('sh-count').textContent='0';}
+function shClear(){el('sh-in').value='';el('sh-out').value='';el('sh-count').textContent='0';el('sh-file').value='';el('sh-fname').textContent='Chưa chọn file';el('sh-fname').title='';}
 function spGen(){
   const t=el('sp-msg').value.trim();let n=parseInt(el('sp-count').value);if(!t)return alert('Vui lòng nhập nội dung!');
   if(isNaN(n)||n<1)n=1;else if(n>1000){n=1000;el('sp-count').value=1000;}el('sp-out').value=Array(n).fill(t).join('\n');
